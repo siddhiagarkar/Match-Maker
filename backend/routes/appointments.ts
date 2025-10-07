@@ -3,6 +3,17 @@ const router = express.Router();
 const Appointment = require('../models/Appointment');
 const auth = require('../middleware/auth');
 
+// Admin-only: View all appointments
+router.get('/all', auth, async (req: any, res: any) => {
+    // Check if requester is admin
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied: Admins only.' });
+    }
+    const appts = await Appointment.find({});
+    res.json(appts);
+});
+
+
 // Get appointments for logged-in user (protected)
 router.get('/', auth, async (req: any, res: any) => {
     const appts = await Appointment.find({

@@ -5,6 +5,7 @@ const dotenv = require('dotenv'); //Loads environment variables from a .env file
 const passport = require('passport'); //Authentication middleware for Node.js (supports various strategies like JWT, OAuth; manages user sessions and auth flows)
 
 //registering models with Mongoose
+const User = require('./models/User');
 const Message = require('./models/Message');
 const Conversation = require('./models/Conversation');
 const AgentAvailability = require('./models/AgentAvailability');
@@ -48,6 +49,9 @@ app.get('/', (req: any, res: any) => {
 app.use('/api/auth', require('./routes/authentication'));
 app.use('/api/agent-availability', auth, require('./routes/agentAvailability'));
 app.use('/api/appointments', auth, require('./routes/appointments'));
+app.use('/api/conversations', auth, require('./routes/conversationHistory'));
+app.use('/api/messages', auth, require('./routes/messages'));
+app.use('/api/profile', auth, require('./routes/profile'));
 
 //// Route to start Google Auth flow
 //app.get('/auth/google',
