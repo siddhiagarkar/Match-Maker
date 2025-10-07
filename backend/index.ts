@@ -4,6 +4,12 @@ const cors = require('cors'); //Allows your API to be called from browsers/clien
 const dotenv = require('dotenv'); //Loads environment variables from a .env file into process.env (securely manage sensitive config data like DB connection strings, API keys)
 const passport = require('passport'); //Authentication middleware for Node.js (supports various strategies like JWT, OAuth; manages user sessions and auth flows)
 
+//registering models with Mongoose
+const Message = require('./models/Message');
+const Conversation = require('./models/Conversation');
+const AgentAvailability = require('./models/AgentAvailability');
+const Appointment = require('./models/Appointment');
+
 // Load env
 dotenv.config();
 
@@ -30,9 +36,6 @@ require('./middleware/strategies/google');
 
 // Middleware
 const auth = require('./middleware/auth'); //plug-and-play Passport authentication middleware
-const validate = require('./middleware/inputValidate'); //middleware for input validation (e.g., checking request body matches a schema)
-const { registerSchema, loginSchema } = require('./middleware/validationSchema'); //import Joi validation schemas
-
 const PORT = process.env.PORT || 5000;
 
 // Health check route
@@ -40,43 +43,11 @@ app.get('/', (req: any, res: any) => {
     res.send('API server is running');
 });
 
-// User model & bcrypt
-const User = require('./models/User');
-const bcrypt = require('bcryptjs');
 
-// Registration route
-app.post('/api/register', validate(registerSchema), async (req: any, res: any) => {
-
-    //destructure request data
-    const { name, email, password, role } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 12);
-    try {
-        const user = new User({ name, email, password: hashedPassword, role }); //Prepares a new Mongoose User document
-        await user.save();
-        res.status(201).json({ message: 'User registered' });
-    } catch (err) {
-        res.status(400).json({ error: 'Email already exists' });
-    }
-});
-
-// Login route (returns JWT for client usage)
-const jwt = require('jsonwebtoken');
-
-app.post('/api/login', validate(loginSchema), async (req: any, res: any) => {
-
-    //destructure request data
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: 'Invalid credentials. No user with provided email.' });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ error: 'Invalid credentials. Check your password.' });
-
-    // Issue JWT for authentication. This token is what the frontend will store and send for protected API calls
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token, role: user.role });
-});
-
+//Plugging Route Files into Main App
+app.use('/api/auth', require('./routes/authentication'));
+app.use('/api/agent-availability', auth, require('./routes/agentAvailability'));
+app.use('/api/appointments', auth, require('./routes/appointments'));
 
 //// Route to start Google Auth flow
 //app.get('/auth/google',
