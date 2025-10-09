@@ -15,6 +15,9 @@ router.get('/all', auth, async (req: any, res: any) => {
 
 // Get agent's availabilities (protected)
 router.get('/:agentId', auth, async (req: any, res: any) => {
+    if (req.user.role !== 'admin' && req.user._id.toString() !== req.params.agentId) {
+        return res.status(403).json({ error: 'Access denied.' });
+    }
     const avail = await AgentAvailability.findOne({ agent: req.params.agentId });
     res.json(avail);
 });

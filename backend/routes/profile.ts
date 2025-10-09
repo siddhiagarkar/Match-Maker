@@ -15,6 +15,9 @@ router.get('/all', auth, async (req: any, res: any) => {
 
 // Profile info - protected
 router.get('/:id', auth, async (req: any, res: any) => {
+    if (req.user.id !== req.params.id && req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Access denied.' });
+    }
     const user = await User.findById(req.params.id);
     res.json(user);
 });
