@@ -31,6 +31,10 @@ const AgentAvailability = require('../models/AgentAvailability');
 router.post('/', auth, async (req: any, res: any) => {
     const { agent, time } = req.body; // time should be ISO string
 
+    if (req.user.role !== 'client') {
+        return res.status(403).json({error : 'Only clients can create appointments.'})
+    }
+
     // 1: Fetch agent's available slots
     const availability = await AgentAvailability.findOne({ agent });
 
@@ -39,9 +43,8 @@ router.post('/', auth, async (req: any, res: any) => {
     }
 
     // 2: Check for matching slot
-    // Assuming each slot: {start, end} and req.body.time is within a slot
     const requestedTime = new Date(time);
-    const isAvailable = availability.slots.some((slot: { start: string | number | Date; end: string | number | Date; }) =>
+    const isAvailable = availability.slots.some((slot: any) =>
         requestedTime >= new Date(slot.start) && requestedTime < new Date(slot.end)
     );
 
@@ -49,10 +52,19 @@ router.post('/', auth, async (req: any, res: any) => {
         return res.status(400).json({ error: 'Agent is not available at the requested time.' });
     }
 
-    // 3: (Optional) Ensure there's no other appointment in that slot
-    const conflict = await Appointment.findOne({ agent, time });
+    // 3: Ensure there's no other appointment in a +/-20 minute buffer
+
+    const bufferMinutes = 20; //assuming each appointment takes 20 mins
+
+    const lowerBound = new Date(requestedTime.getTime() - bufferMinutes * 60000);
+    const upperBound = new Date(requestedTime.getTime() + bufferMinutes * 60000);
+
+    const conflict = await Appointment.findOne({
+        agent,
+        time: { $gte: lowerBound, $lte: upperBound }
+    });
     if (conflict) {
-        return res.status(400).json({ error: 'This slot is already booked.' });
+        return res.status(400).json({ error: `This slot overlaps with another booking (within ${bufferMinutes} minutes).` });
     }
 
     // 4: Create the appointment
