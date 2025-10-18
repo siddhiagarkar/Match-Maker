@@ -1,0 +1,28 @@
+/*.center-container, .form-box, .chat-box, card styles*/
+
+.center-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    width: 100vw;
+    height: 100vh;
+}
+
+.form-box, .chat-box {
+    background: #fff;
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    padding: 2rem 2.5rem;
+    width: 100%;
+    max-width: 370px;
+    margin: 1rem;
+    transition: box-shadow 0.2s;
+}
+
+@media (max-width: 600px) {
+    .form-box, .chat-box {
+        max-width: 97vw;
+        padding: 1.2rem 0.5rem;
+    }
+}

@@ -1,0 +1,97 @@
+/* Header for forms */
+.form-box h2 {
+    margin-top: 0;
+    color: #1866c2;
+}
+
+/* Vertical stacked inputs for forms */
+.form-box input,
+.form-box select {
+    width: 100%;
+    padding: 0.7rem;
+    margin-bottom: 1rem;
+    border: 1px solid #d4e0f1;
+    border-radius: 7px;
+    font-size: 1rem;
+}
+
+/* Chat input bar - horizontal within chat window */
+.chat-box form {
+    display: flex;
+    gap: 0.7rem;
+    margin: 0;
+}
+
+.chat-box input {
+    flex: 1;
+    width: auto; /* Let input resize in the row */
+    margin-bottom: 0; /* Remove vertical spacing */
+    padding: 0.7rem;
+    border: 1px solid #d4e0f1;
+    border-radius: 7px;
+    font-size: 1rem;
+}
+
+/* Chat window container */
+.chat-box {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 2rem;
+}
+
+    /* Optional: margin/padding for chat bar */
+    .chat-box .chat-input-row {
+        margin-top: 0.5rem;
+        margin-bottom: 0.3rem;
+    }
+
+.chat-input-row input {
+    height: 44px; /* Match button height */
+    box-sizing: border-box;
+}
+
+.chat-input-row button {
+    height: 44px;
+    box-sizing: border-box;
+}
+
+/* Vertical form buttons & chat buttons */
+.form-box button,
+.chat-box button {
+    background: #1866c2;
+    color: white;
+    padding: 0.8rem;
+    border: none;
+    border-radius: 7px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin: 0.5rem 0 0;
+    transition: background 0.15s;
+    width: 100%; /* Vertical forms: button fills container */
+}
+
+.chat-box button {
+    width: auto; /* Chat bar: button fits content */
+    padding: 0.7rem 2rem;
+    margin: 0;
+}
+
+    .form-box button:hover,
+    .chat-box button:hover {
+        background: #124a8c;
+    }
+
+/* Responsive for small screens */
+@media (max-width: 600px) {
+    .form-box,
+    .chat-box {
+        max-width: 97vw;
+        padding: 1.2rem 0.5rem;
+    }
+
+    .chat-input-row {
+        padding-left: 0.1rem;
+        padding-right: 0.1rem;
+    }
+}

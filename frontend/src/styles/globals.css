@@ -1,0 +1,23 @@
+/* body, html, root, reset styles*/
+
+html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+body {
+    background: #f6faff;
+    font-family: "Segoe UI", Arial, sans-serif;
+    min-width: 320px;
+}
+
+:root {
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    color-scheme: light dark;
+    background-color: #242424;
+    /* add others as desired */
+}
