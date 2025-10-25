@@ -24,25 +24,11 @@ const messageSchema = Joi.object({
     content: Joi.string().min(1).max(2000).required()
 });
 
-const slotSchema = Joi.object({
-    start: Joi.string()
-        .isoDate()
-        .required(), // Expects ISO8601 date-time string
-    end: Joi.string()
-        .isoDate()
-        .required(), // Expects ISO8601 date-time string
-    timezone: Joi.string().default('Asia/Kolkata')
-});
 
-const slotsArraySchema = Joi.object({
-    slots: Joi.array().items(slotSchema).min(1).required()
-});
 
 module.exports = {
     registerSchema,
     loginSchema,
     conversationSchema,
-    messageSchema,
-    slotSchema,
-    slotsArraySchema,
+    messageSchema
 };

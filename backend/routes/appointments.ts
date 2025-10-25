@@ -38,34 +38,17 @@ router.post('/', auth, async (req: any, res: any) => {
     // 1: Fetch agent's available slots
     const availability = await AgentAvailability.findOne({ agent });
 
-    if (!availability || !availability.slots || availability.slots.length === 0) {
-        return res.status(400).json({ error: 'No available slots for this agent.' });
+    if (!availability) {
+        return res.status(400).json({ error: 'This agent is not logged in right now / on other call.' });
     }
 
-    // 2: Check for matching slot
     const requestedTime = new Date(time);
-    const isAvailable = availability.slots.some((slot: any) =>
-        requestedTime >= new Date(slot.start) && requestedTime < new Date(slot.end)
-    );
-
-    if (!isAvailable) {
-        return res.status(400).json({ error: 'Agent is not available at the requested time.' });
-    }
 
     // 3: Ensure there's no other appointment in a +/-20 minute buffer
-
     const bufferMinutes = 20; //assuming each appointment takes 20 mins
 
     const lowerBound = new Date(requestedTime.getTime() - bufferMinutes * 60000);
     const upperBound = new Date(requestedTime.getTime() + bufferMinutes * 60000);
-
-    const conflict = await Appointment.findOne({
-        agent,
-        time: { $gte: lowerBound, $lte: upperBound }
-    });
-    if (conflict) {
-        return res.status(400).json({ error: `This slot overlaps with another booking (within ${bufferMinutes} minutes).` });
-    }
 
     // 4: Create the appointment
     const appt = await Appointment.create({
