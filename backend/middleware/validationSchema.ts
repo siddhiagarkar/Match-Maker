@@ -14,6 +14,7 @@ const loginSchema = Joi.object({
 });
 
 const conversationSchema = Joi.object({
+    ticket: Joi.string().length(24).required(),
     participants: Joi.array().items(Joi.string().length(24)).min(2).required()
     // Each participant must be a valid MongoDB ObjectId string (length 24)
 });

@@ -29,36 +29,61 @@ router.get('/', auth, async (req: any, res: any) => {
 const AgentAvailability = require('../models/AgentAvailability');
 
 router.post('/', auth, async (req: any, res: any) => {
-    const { agent, time } = req.body; // time should be ISO string
+    try {
+        const { agent } = req.body; 
 
-    if (req.user.role !== 'client') {
-        return res.status(403).json({error : 'Only clients can create appointments.'})
+        if (req.user.role !== 'client') {
+            return res.status(403).json({ error: 'Only clients can create appointments.' });
+        }
+
+        // 1: Check agent's current availability
+        const availability = await AgentAvailability.findOne({
+            agent: agent,
+            availability: true
+        });
+
+        if (!availability) {
+            return res.status(400).json({ error: 'This agent is not available right now.' });
+        }
+
+        // 2: Use current time as the appointment time
+        const appointmentTime = new Date();
+
+        // 3: Buffer check (+/- 20 min)
+        const bufferMinutes = 20;
+        const lowerBound = new Date(appointmentTime.getTime() - bufferMinutes * 60000);
+        const upperBound = new Date(appointmentTime.getTime() + bufferMinutes * 60000);
+
+        const conflictingAppt = await Appointment.findOne({
+            agent: agent,
+            time: { $gte: lowerBound, $lte: upperBound },
+            status: { $in: ['pending', 'confirmed'] }
+        });
+
+        if (conflictingAppt) {
+            return res.status(409).json({ error: 'Agent has a conflicting appointment in this time slot.' });
+        }
+
+        // 4: Create appointment
+        const appt = await Appointment.create({
+            client: req.user._id,
+            agent,
+            time: appointmentTime,
+            status: 'pending'
+        });
+
+        res.status(201).json({
+            success: true,
+            appointment: appt,
+            message: 'Appointment created successfully.'
+        });
+
+    } catch (err) {
+        console.error('Appointment creation error:', err);
+        res.status(500).json({ error: 'Failed to create appointment.' });
     }
-
-    // 1: Fetch agent's available slots
-    const availability = await AgentAvailability.findOne({ agent });
-
-    if (!availability) {
-        return res.status(400).json({ error: 'This agent is not logged in right now / on other call.' });
-    }
-
-    const requestedTime = new Date(time);
-
-    // 3: Ensure there's no other appointment in a +/-20 minute buffer
-    const bufferMinutes = 20; //assuming each appointment takes 20 mins
-
-    const lowerBound = new Date(requestedTime.getTime() - bufferMinutes * 60000);
-    const upperBound = new Date(requestedTime.getTime() + bufferMinutes * 60000);
-
-    // 4: Create the appointment
-    const appt = await Appointment.create({
-        client: req.user._id,
-        agent,
-        time,
-        status: 'pending'
-    });
-    res.status(201).json(appt);
 });
+
 
 
 module.exports = router;

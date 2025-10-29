@@ -52,6 +52,8 @@ app.use('/api/appointments', auth, require('./routes/appointments'));
 app.use('/api/conversations', auth, require('./routes/conversationHistory'));
 app.use('/api/messages', auth, require('./routes/messages'));
 app.use('/api/profile', auth, require('./routes/profile'));
+app.use('/api/match', auth, require('./routes/agentMatching'));
+app.use('/api/tickets', auth, require('./routes/tickets'));
 
 //// Route to start Google Auth flow
 //app.get('/auth/google',
