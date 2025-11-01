@@ -14,21 +14,22 @@ router.post('/', auth, async (req: any, res: any) => {
 
 // Anyone (employee): dashboard - get all open tickets
 router.get('/dashboard-open', auth, async (req: any, res: any) => {
-    if (req.user.role !== 'agent' || req.user.role!== 'admin') return res.status(403).json({ error: "Only employees can view dashboard" });
+    console.log(req.user.role);
+    if (req.user.role !== 'agent' && req.user.role!== 'admin') return res.status(403).json({ error: "Only employees can view dashboard" });
     const tickets = await Ticket.find({ status: 'open' }).populate('client', 'name');
     res.json(tickets);
 });
 
 // Anyone (employee): dashboard - get all open tickets
 router.get('/dashboard-accepted', auth, async (req: any, res: any) => {
-    if (req.user.role !== 'agent' || req.user.role !== 'admin') return res.status(403).json({ error: "Only employees can view dashboard" });
+    if (req.user.role !== 'agent' && req.user.role !== 'admin') return res.status(403).json({ error: "Only employees can view dashboard" });
     const tickets = await Ticket.find({ status: 'accepted' }).populate('client', 'name');
     res.json(tickets);
 });
 
 // Anyone (employee): dashboard - get all open tickets
 router.get('/dashboard-resolved', auth, async (req: any, res: any) => {
-    if (req.user.role !== 'agent' || req.user.role!== 'admin') return res.status(403).json({ error: "Only employees can view dashboard" });
+    if (req.user.role !== 'agent' && req.user.role!== 'admin') return res.status(403).json({ error: "Only employees can view dashboard" });
     const tickets = await Ticket.find({ status: 'resolved' }).populate('client', 'name');
     res.json(tickets);
 });

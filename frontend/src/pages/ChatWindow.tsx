@@ -15,14 +15,26 @@ type Message = {
 
 type ConversationSummary = {
     _id: string;
+    ticket: string;
     participants: User[];
     lastMessage?: string;
     updatedAt?: string;
 };
 
+//type TicketSummary = {
+//    _id: string;
+//    subject: string;
+//    status: string;
+//    client: User;
+//    acceptedBy?: User;
+//    createdAt: string;
+//    updatedAt: string;
+//};
+
 
 export default function ChatWindow() {
     const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+    //const [tickets, setTickets] = useState<TicketSummary[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
@@ -31,6 +43,7 @@ export default function ChatWindow() {
     const user = useContext(AuthContext);
     const userId = user?._id;
 
+    
     function renderUserName(participants: User[]) {
         const other = participants.find(u => u._id !== userId);
         return other ? other.name : 'Unknown';
@@ -78,7 +91,6 @@ export default function ChatWindow() {
     });
 
 
-
     // Chat area auto scroll to bottom on new message
     useEffect(() => {
         const elem = document.querySelector('.chat-messages');
@@ -104,9 +116,13 @@ export default function ChatWindow() {
                                 <div className="sidebar-chat-item-name">
                                     {renderUserName(conv.participants)}
                                 </div>
+                                <div>
+                                    <strong>Ticket ID:</strong> {conv.ticket}
+                                </div>
                                 {conv.lastMessage && (
                                     <div className="sidebar-chat-item-snippet">
                                         {conv.lastMessage}
+                                        {conv.ticket}
                                     </div>
                                 )}
                                 {conv.updatedAt && (
