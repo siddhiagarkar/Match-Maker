@@ -16,17 +16,14 @@ export default function Login({ setUser }: { setUser: (u: User) => void }) {
         e.preventDefault();
         try {
             const res = await API.post('auth/login', { email, password });
-            const token = res.data.token;
-            localStorage.setItem('token', token);
 
-            // Decode JWT right now to populate user context
-            const decoded = jwtDecode(token);
-            setUser({
-                _id: decoded.sub || decoded.id || decoded.userId,
-                name: decoded.name || decoded.username || ""
-            });
-
-            navigate('/chat');
+            const { _id, name, role, token } = res.data; // token comes from backend
+            const userObj = { _id, name, role, token };
+            setUser(userObj); // Updates the AuthContext
+            localStorage.setItem('user', JSON.stringify(userObj)); // Persists for reloads
+            console.log("Redirecting to chat page");
+            navigate("/chat");
+            console.log("On login, the user details are - ", userObj);
         } catch (error) {
             setErr(error.response?.data?.error || 'Login failed');
         }

@@ -10,9 +10,10 @@ import { jwtDecode } from 'jwt-decode';
 
 
 function PrivateRoute({ children }: { children: JSX.Element }): JSX.Element {
-    // You can make this smarter (check JWT expiry, etc), but for now just check token
-    return localStorage.getItem('token') ? children : <Navigate to="/login" />;
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user && user.token && user._id ? children : <Navigate to="/login" />;
 }
+
 
 function App() {
     // This state holds your current user object
@@ -20,24 +21,29 @@ function App() {
 
     //fetch user if logged in
     useEffect(() => {
+        // Try to restore user from localStorage (ONE place only!)
+        const saved = localStorage.getItem("user");
+        if (saved) {
+            setUser(JSON.parse(saved));
+            console.log("GET ITEM - 1");
+            return;
+        }
+
+        // Fallback: reconstruct from a bare "token" if present (rarely needed)
         const token = localStorage.getItem("token");
+        console.log("GET ITEM - 2");
         if (token) {
             try {
-                // The shape of the decoded object depends on your backend JWT payload
-                // Typical payload: { sub: userId, name: userName, email: userEmail }
-                console.log("Token from localStorage:", token);
-
-
                 const decoded = jwtDecode(token);
-                console.log("Decoded JWT:", decoded);
-
-
-                // You MUST match these keys to your backend's JWT claims
-                setUser({
-                    _id: decoded.sub || decoded.id || decoded.userId, // fallback to whatever claim you find
-                    name: decoded.name || decoded.username || ""
-                });
-
+                // Make sure all keys match what your code expects
+                const userObj = {
+                    _id: decoded._id,
+                    name: decoded.name,
+                    role: decoded.role,
+                    token // <-- use actual JWT string!
+                };
+                setUser(userObj); // Updates the AuthContext
+                localStorage.setItem('user', JSON.stringify(userObj));
             } catch (err) {
                 setUser(null);
             }
@@ -45,6 +51,7 @@ function App() {
             setUser(null);
         }
     }, []);
+
 
     return (
         <AuthContext.Provider value={user}>

@@ -1,14 +1,13 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState, useRef } from 'react';
 import API from '../api';
-
-import { AuthContext } from "../context/AuthContext"; // adjust path as needed
+import { io, Socket } from 'socket.io-client';
+import { AuthContext } from "../context/AuthContext";
 import type { User } from "../types/User";
 
-
-
 type Message = {
+    conversation: string | null;
     _id: string;
-    sender: string; // user _id
+    sender: string;
     content: string;
     createdAt: string;
 };
@@ -21,45 +20,65 @@ type ConversationSummary = {
     updatedAt?: string;
 };
 
-//type TicketSummary = {
-//    _id: string;
-//    subject: string;
-//    status: string;
-//    client: User;
-//    acceptedBy?: User;
-//    createdAt: string;
-//    updatedAt: string;
-//};
-
-
 export default function ChatWindow() {
     const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-    //const [tickets, setTickets] = useState<TicketSummary[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
-
+    const [isSocketConnected, setIsSocketConnected] = useState(false);
 
     const user = useContext(AuthContext);
     const userId = user?._id;
+    const userToken = user?.token; // Make sure this is stored with user after login!
 
-    
-    function renderUserName(participants: User[]) {
-        const other = participants.find(u => u._id !== userId);
-        return other ? other.name : 'Unknown';
-    }
-    function formatDate(iso: string) {
-        if (!iso) return '';
-        const d = new Date(iso);
-        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
+    // Setup socket as a ref singleton (secure handshake)
+    const socketRef = useRef<Socket | null>(null);
 
+    // Socket creation and connect/disconnect state
+
+    console.log("AuthContext user: ", user);
+    console.log("userId: ", userId, "userToken: ", userToken);
+
+
+    useEffect(() => {
+        if (userId && userToken && !socketRef.current) {
+            socketRef.current = io('http://localhost:5000', {
+                auth: { token: userToken },
+                transports: ['websocket'],
+            });
+
+            // Socket state listeners
+            socketRef.current.on('connect', () => {
+                setIsSocketConnected(true);
+                console.log('SOCKET CONNECTED');
+            });
+            socketRef.current.on('disconnect', () => {
+                setIsSocketConnected(false);
+                console.log('SOCKET DISCONNECTED');
+            });
+
+            socketRef.current.on('connect_error', err => {
+                setIsSocketConnected(false);
+                console.error("Socket connection error:", err.message);
+            });
+        }
+
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
+        };
+    }, [userId, userToken]);
+
+    // Initial conversation list load
     useEffect(() => {
         API.get('/conversations')
             .then(res => setConversations(res.data))
             .catch(() => setConversations([]));
     }, []);
 
+    // Join room and load messages for selected conversation
     useEffect(() => {
         if (!selectedId) {
             setMessages([]);
@@ -68,28 +87,52 @@ export default function ChatWindow() {
         API.get(`/messages/${selectedId}`)
             .then(res => setMessages(res.data))
             .catch(() => setMessages([]));
+        if (socketRef.current && selectedId) {
+            socketRef.current.emit('join_conversation', {
+                conversationId: selectedId
+            });
+        }
     }, [selectedId]);
 
+    // Listen for real-time new messages (and append them)
+    useEffect(() => {
+        if (!socketRef.current) return;
+        const handler = (msg: Message) => {
+            // Only add messages for the active conversation
+            if (msg.conversation === selectedId)
+                setMessages(prev => [...prev, msg]);
+        };
+        socketRef.current.on('receive_message', handler);
+        return () => {
+            socketRef.current?.off('receive_message', handler);
+        };
+    }, [selectedId]);
+
+    // Send message via socket
     const onSend = () => {
-        if (!input.trim() || !selectedId) return;
-        API.post('/messages', {
-            conversation: selectedId,
+        if (!input.trim() || !selectedId || !socketRef.current) return;
+        if (!isSocketConnected) {
+            alert('Not connected to chat. Please wait or reload.');
+            return;
+        }
+        socketRef.current.emit('send_message', {
+            conversationId: selectedId,
             content: input
-        }).then(res => {
-            setMessages([...messages, res.data]);
-            setInput('');
         });
+        setInput('');
     };
 
+    const renderUserName = (participants: User[]) => {
+        const other = participants.find(u => u._id !== userId);
+        return other ? other.name : 'Unknown';
+    };
+    const formatDate = (iso: string) => {
+        if (!iso) return '';
+        const d = new Date(iso);
+        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
     const getBubbleClass = (senderId: string) =>
-        senderId?.toString() === userId?.toString() ? 'me' : 'them';
-
-
-    console.log("Logged in userId:", userId);
-    messages.forEach(m => {
-        console.log("Msg sender:", m.sender, "== me?", m.sender === userId);
-    });
-
+        String(senderId) === String(userId) ? 'me' : 'them';
 
     // Chat area auto scroll to bottom on new message
     useEffect(() => {
@@ -152,10 +195,12 @@ export default function ChatWindow() {
                                         className={`message-bubble-row ${getBubbleClass(m.sender)}`}
                                     >
                                         <span className="message-bubble">{m.content}</span>
+                                        <span style={{ fontSize: 10, color: '#aaa' }}>
+                                            [sender: {m.sender}, me: {userId}, eq: {String(m.sender) === String(userId) ? 'Y' : 'N'}]
+                                        </span>
                                     </div>
                                 ))}
                             </div>
-
                             <form
                                 className="chat-input-bar"
                                 onSubmit={e => {
@@ -166,10 +211,13 @@ export default function ChatWindow() {
                                 <input
                                     value={input}
                                     type="text"
+                                    disabled={!isSocketConnected}
                                     placeholder="Type a message…"
                                     onChange={e => setInput(e.target.value)}
                                 />
-                                <button type="submit">Send</button>
+                                <button type="submit" disabled={!isSocketConnected || !input.trim()}>
+                                    Send
+                                </button>
                             </form>
                         </>
                     ) : (

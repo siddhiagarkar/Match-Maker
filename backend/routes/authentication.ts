@@ -34,18 +34,9 @@ router.post('/login', validate(loginSchema), async (req: any, res: any) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials. Check your password.' });
 
-    // Toggle agent availability if employee/agent
-    if (user.role === 'employee' || user.role === 'agent') {
-        await AgentAvailability.findOneAndUpdate(
-            { agent: user._id },
-            { $set: { availability: true } },
-            { upsert: true, new: true }
-        );
-    }
-
     // Issue JWT for authentication. This token is what the frontend will store and send for protected API calls
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token, role: user.role });
+    const token = jwt.sign({ _id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    res.json({ token, role: user.role, name: user.name, _id: user._id });
 
 });
 
