@@ -10,7 +10,7 @@ const { conversationSchema } = require('../middleware/validationSchema'); //impo
 
 // Get all conversations for logged-in user
 router.get('/', auth, async (req: any, res: any) => {
-    const convos = await Conversation.find({ participants: req.user._id }).populate('participants', 'name');
+    const convos = await Conversation.find({ participants: req.user._id }).populate('participants', 'name').populate('ticket');
     res.json(convos);
 });
 

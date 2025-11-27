@@ -7,6 +7,8 @@ import { AuthContext } from './context/AuthContext';
 import type { User } from './types/User';
 import type { JSX } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import TicketPostForm from './pages/TicketPostForm';
+import EmployeeDashboard from './pages/EmployeeDashboard';
 
 
 function PrivateRoute({ children }: { children: JSX.Element }): JSX.Element {
@@ -67,6 +69,10 @@ function App() {
                         </PrivateRoute>
                     } />
                     <Route path="*" element={<Navigate to="/login" />} />
+                    <Route path="/tickets/new" element={<TicketPostForm />} />
+                    <Route path="/employee/dashboard" element={
+                         <EmployeeDashboard />
+                    } />
                 </Routes>
             </BrowserRouter>
         </AuthContext.Provider>

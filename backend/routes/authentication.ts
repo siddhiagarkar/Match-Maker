@@ -14,7 +14,7 @@ router.post('/register', validate(registerSchema), async (req: any, res: any) =>
         const { name, email, password, role, domains } = req.body;
         const hashedPassword = await bcrypt.hash(password, 12);
     try {
-            const user = new User({ name, email, password: hashedPassword, role, domains }); //Prepares a new Mongoose User document
+        const user = new User({ name, email, password: hashedPassword, role, domains }); //Prepares a new Mongoose User document
             await user.save();
             res.status(201).json({ message: 'User registered' });
         } catch (err) {
