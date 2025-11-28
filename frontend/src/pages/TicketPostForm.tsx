@@ -1,161 +1,296 @@
-import { useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import API from '../api';
 import Dropdown from '../components/Dropdown';
+import Navbar from '../components/Navbar';
+import { AuthContext } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function TicketPostForm() {
-    const [priority, setPriority] = useState('');
-    const [masterDomain, setMasterDomain] = useState('');
-    const [subDomain, setSubDomain] = useState('');
-    const [subject, setSubject] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState('');
+  const [priority, setPriority] = useState('');
+  const [masterDomain, setMasterDomain] = useState('');
+  const [subDomain, setSubDomain] = useState('');
+  const [subject, setSubject] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
 
-    const priorityOptions = [
-        { value: '', label: 'Select Priority' },
-        { value: 'urgent', label: 'Urgent' },
-        { value: 'high', label: 'High' },
-        { value: 'medium', label: 'Medium' },
-        { value: 'low', label: 'Low' }
-    ];
+  const user = useContext(AuthContext);
+  const navigate = useNavigate();
 
-    const domainOptions = [
-        { value: '', label: 'Select Domain' },
-        { value: 'tech', label: 'Tech Support' },
-        { value: 'hr', label: 'HR' },
-        { value: 'sales', label: 'Sales' },
-        { value: 'other', label: 'Other' }
-    ];
+  // Guard: only clients can access this page
+  useEffect(() => {
+    if (!user) return; // can also redirect to login here
+    if (user.role !== 'client') {
+      navigate('/'); // or '/employee/dashboard'
+    }
+  }, [user, navigate]);
 
-    const subdomainOptionsMap: { [key: string]: { value: string; label: string }[] } = {
-        tech: [
-            { value: 'hardware', label: 'Hardware' },
-            { value: 'software', label: 'Software' },
-            { value: 'network', label: 'Network Issue' }
-        ],
-        hr: [
-            { value: 'payroll', label: 'Payroll' },
-            { value: 'recruitment', label: 'Recruitment' }
-        ],
-        sales: [
-            { value: 'leads', label: 'New Leads' },
-            { value: 'records', label: 'Update Records' }
-        ]
-    };
+  const priorityOptions = [
+    { value: '', label: 'Select priority' },
+    { value: 'urgent', label: 'Urgent' },
+    { value: 'high', label: 'High' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'low', label: 'Low' }
+  ];
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setSuccess('');
+  const domainOptions = [
+    { value: '', label: 'Select domain' },
+    { value: 'tech', label: 'Tech Support' },
+    { value: 'hr', label: 'HR' },
+    { value: 'sales', label: 'Sales' },
+    { value: 'other', label: 'Other' }
+  ];
 
-        if (!priority) {
-            setError('Priority is required.');
-            return;
-        }
+  const subdomainOptionsMap: { [key: string]: { value: string; label: string }[] } = {
+    tech: [
+      { value: 'hardware', label: 'Hardware' },
+      { value: 'software', label: 'Software' },
+      { value: 'network', label: 'Network issue' }
+    ],
+    hr: [
+      { value: 'payroll', label: 'Payroll' },
+      { value: 'recruitment', label: 'Recruitment' }
+    ],
+    sales: [
+      { value: 'leads', label: 'New leads' },
+      { value: 'records', label: 'Update records' }
+    ]
+  };
 
-        if (!masterDomain) {
-            setError('Domain is required.');
-            return;
-        }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
 
-        // If domain is OTHER, subject is required
-        if (masterDomain === 'other' && !subject.trim()) {
-            setError('Please specify your subject for "Other" domain.');
-            return;
-        }
+    if (!priority) {
+      setError('Priority is required.');
+      return;
+    }
+    if (!masterDomain) {
+      setError('Domain is required.');
+      return;
+    }
+    if (masterDomain === 'other' && !subject.trim()) {
+      setError('Please specify your subject for "Other" domain.');
+      return;
+    }
+    if (masterDomain !== 'other' && subdomainOptionsMap[masterDomain] && !subDomain) {
+      setError('Please select a subdomain.');
+      return;
+    }
+    if (!subject.trim()) {
+      setError('Subject is required.');
+      return;
+    }
 
-        // If domain is not OTHER, subDomain required
-        if (masterDomain !== 'other' && subdomainOptionsMap[masterDomain] && !subDomain) {
-            setError('Please select a subdomain.');
-            return;
-        }
+    setLoading(true);
+    try {
+      const payload: any = {
+        priority,
+        masterDomain,
+        subDomain: masterDomain !== 'other' ? subDomain : undefined,
+        subject
+      };
+      await API.post('/tickets', payload);
+      setSuccess('Ticket posted successfully!');
+      setPriority('');
+      setMasterDomain('');
+      setSubDomain('');
+      setSubject('');
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to post ticket.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        // Always require subject for clarity
-        if (!subject.trim()) {
-            setError('Subject is required.');
-            return;
-        }
+  const userInitials =
+    user?.name
+      ? user.name
+          .split(' ')
+          .map(p => p[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase()
+      : 'CU';
 
-        setLoading(true);
+  return (
+    <>
+      <Navbar
+        onDashboard={() => navigate('/client/tickets')}
+        onChat={() => navigate('/chat')}
+        onLogout={() => {
+          // add your logout logic here
+          navigate('/login');
+        }}
+        userName={user?.name || 'Current User'}
+        userInitials={userInitials}
+        online={true}
+      />
 
-        try {
-            const payload: any = {
-                priority,
-                masterDomain: masterDomain,
-                subDomain: masterDomain !== 'other' ? subDomain : undefined,
-                subject
-            };
-            await API.post('/tickets', payload);
-            setSuccess('Ticket posted successfully!');
-            // Reset form
-            setPriority('');
-            setMasterDomain('');
-            setSubDomain('');
-            setSubject('');
-        } catch (err: any) {
-            setError(err?.response?.data?.error || 'Failed to post ticket.');
-        } finally {
-            setLoading(false);
-        }
-    };
+      <div
+        style={{
+          minHeight: '100vh',
+          background: '#f5f7fb',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          padding: '3.5rem 1rem 2.5rem'
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 560,
+            background: '#ffffff',
+            borderRadius: 24,
+            boxShadow: '0 18px 45px rgba(15,23,42,0.06)',
+            padding: '2.3rem 2.6rem',
+            border: '1px solid #eef0f7'
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 24,
+              fontWeight: 600,
+              marginBottom: 6,
+              color: '#111827'
+            }}
+          >
+            How can we help?
+          </h2>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 18 }}>
+            Create a ticket and our team will get back to you as soon as possible.
+          </p>
 
-    return (
-        <div style={{ maxWidth: 400, margin: '2rem auto', background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #ececec', padding: 24 }}>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <h2>Post a Support Ticket</h2>
-                {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
-                {success && <div style={{ color: 'green', marginBottom: 8 }}>{success}</div>}
+          {error && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: '0.55rem 0.85rem',
+                borderRadius: 14,
+                background: '#fef2f2',
+                color: '#b91c1c',
+                fontSize: 13.5
+              }}
+            >
+              {error}
+            </div>
+          )}
+          {success && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: '0.55rem 0.85rem',
+                borderRadius: 14,
+                background: '#ecfdf3',
+                color: '#166534',
+                fontSize: 13.5
+              }}
+            >
+              {success}
+            </div>
+          )}
+
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 6 }}
+          >
+            {/* First row: priority + domain */}
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <Dropdown
-                    label="Priority"
-                    options={priorityOptions}
-                    value={priority}
-                    onChange={setPriority}
-                    required
+                  label="Priority"
+                  options={priorityOptions}
+                  value={priority}
+                  onChange={setPriority}
+                  required
+                  style={{
+                    borderRadius: 999,
+                    borderColor: '#e5e7eb',
+                    padding: '0.55rem 0.9rem',
+                    background: '#f9fafb'
+                  }}
                 />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <Dropdown
-                    label="Domain"
-                    options={domainOptions}
-                    value={masterDomain}
-                    onChange={val => {
-                        setMasterDomain(val);
-                        setSubDomain('');
-                        setSubject('');
-                    }}
-                    required
+                  label="Domain"
+                  options={domainOptions}
+                  value={masterDomain}
+                  onChange={val => {
+                    setMasterDomain(val);
+                    setSubDomain('');
+                  }}
+                  required
+                  style={{
+                    borderRadius: 999,
+                    borderColor: '#e5e7eb',
+                    padding: '0.55rem 0.9rem',
+                    background: '#f9fafb'
+                  }}
                 />
+              </div>
+            </div>
 
-                {/* Subdomain dropdown only if masterDomain not OTHER */}
-                {masterDomain && masterDomain !== 'other' && subdomainOptionsMap[masterDomain] && (
-                    <Dropdown
-                        label="Subdomain"
-                        options={[
-                            { value: '', label: 'Select Subdomain' },
-                            ...subdomainOptionsMap[masterDomain]
-                        ]}
-                        value={subDomain}
-                        onChange={setSubDomain}
-                        required
-                    />
-                )}
+            {masterDomain && masterDomain !== 'other' && subdomainOptionsMap[masterDomain] && (
+              <Dropdown
+                label="Subdomain"
+                options={[
+                  { value: '', label: 'Select subdomain' },
+                  ...subdomainOptionsMap[masterDomain]
+                ]}
+                value={subDomain}
+                onChange={setSubDomain}
+                required
+                style={{
+                  borderRadius: 999,
+                  borderColor: '#e5e7eb',
+                  padding: '0.55rem 0.9rem',
+                  background: '#f9fafb'
+                }}
+              />
+            )}
 
-                {/* If masterDomain is "Other" or ANY, subject input always shown */}
-                <Input
-                    label={masterDomain === 'other' ? "How can we help you?" : "Additional comments (if any)"}
-                    type="text"
-                    value={subject}
-                    required
-                    placeholder={masterDomain === 'other'
-                        ? "Describe your issue"
-                        : "What do you need help with?"}
-                    onChange={e => setSubject(e.target.value)}
-                />
+            <Input
+              label={masterDomain === 'other' ? 'How can we help you?' : 'Describe your request'}
+              type="text"
+              value={subject}
+              required
+              placeholder={
+                masterDomain === 'other'
+                  ? 'Briefly describe the problem…'
+                  : 'Add any additional details or context…'
+              }
+              onChange={e => setSubject(e.target.value)}
+              style={{
+                borderRadius: 18,
+                borderColor: '#e5e7eb',
+                background: '#f9fafb',
+                padding: '0.7rem 0.9rem'
+              }}
+            />
 
-                <Button type="submit" disabled={loading}>
-                    {loading ? 'Submitting...' : 'Post Ticket'}
-                </Button>
-            </form>
+            <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                type="submit"
+                disabled={loading}
+                style={{
+                  borderRadius: 999,
+                  padding: '0.7rem 1.9rem',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  boxShadow: '0 10px 22px rgba(37,99,235,0.35)'
+                }}
+              >
+                {loading ? 'Submitting…' : 'Send Request'}
+              </Button>
+            </div>
+          </form>
         </div>
-    );
+      </div>
+    </>
+  );
 }
