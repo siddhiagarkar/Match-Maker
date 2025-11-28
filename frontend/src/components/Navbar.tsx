@@ -166,7 +166,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 background: online ? '#c5c022ff' : '#9ca3af',
               }}
             />
-            {online ? 'Online' : 'Offline'}
+            {online ? 'Take a break' : 'On break'}
           </div>
 
           {/* User pill */}

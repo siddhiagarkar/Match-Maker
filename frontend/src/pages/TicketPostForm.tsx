@@ -82,8 +82,8 @@ export default function TicketPostForm() {
       setError('Please select a subdomain.');
       return;
     }
-    if (!subject.trim()) {
-      setError('Subject is required.');
+    if (masterDomain == 'other' && !subject.trim()) {
+      setError('Please provide a brief description of your issue.');
       return;
     }
 
@@ -157,7 +157,7 @@ export default function TicketPostForm() {
             boxShadow: '0 18px 45px rgba(15,23,42,0.06)',
             padding: '2.3rem 2.6rem',
             border: '1px solid #eef0f7',
-            marginTop: '10rem'
+            marginTop: '5%'
           }}
         >
           <h2
@@ -220,7 +220,11 @@ export default function TicketPostForm() {
                     borderRadius: 999,
                     borderColor: '#e5e7eb',
                     padding: '0.55rem 0.9rem',
-                    background: '#f9fafb'
+                    background: '#f9fafb',
+                    paddingBlock: '1rem',
+                    paddingBlockStart: '0.9rem',
+                    paddingBlockEnd: '0.9rem',
+              
                   }}
                 />
               </div>
@@ -238,7 +242,10 @@ export default function TicketPostForm() {
                     borderRadius: 999,
                     borderColor: '#e5e7eb',
                     padding: '0.55rem 0.9rem',
-                    background: '#f9fafb'
+                    background: '#f9fafb',
+                    paddingBlock: '1rem',
+                    paddingBlockStart: '0.9rem',
+                    paddingBlockEnd: '0.9rem',
                   }}
                 />
               </div>
@@ -267,7 +274,6 @@ export default function TicketPostForm() {
               label={masterDomain === 'other' ? 'How can we help you?' : 'Describe your request'}
               type="text"
               value={subject}
-              required
               placeholder={
                 masterDomain === 'other'
                   ? 'Briefly describe the problem…'
@@ -283,24 +289,25 @@ export default function TicketPostForm() {
             />
 
             <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
+              <button
                 type="submit"
                 disabled={loading}
                 style={{
                   borderRadius: 999,
                   padding: '0.7rem 1.9rem',
                   fontSize: 15,
-                  
                   fontWeight: 600,
                   background: loading ? '#d1d5db' : '#2563eb',
                   color: '#fff',
                   boxShadow: loading ? 'none' : '0 4px 12px rgba(37,99,235,0.35)',
                   width: '100%',
                   justifyContent: 'center',
+                  border: 'none',
+                  cursor: loading ? 'not-allowed' : 'pointer',
                 }}
               >
-                {loading ? 'Submitting…' : 'Send Request'}
-              </Button>
+                {loading ? 'Submitting…' : 'SEND QUERY'}
+              </button>
             </div>
           </form>
         </div>
