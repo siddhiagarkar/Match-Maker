@@ -18,7 +18,7 @@ export const ChatShell: React.FC<{ sidebar: React.ReactNode; content: React.Reac
       display: 'grid',
       gridTemplateColumns: '380px 1fr',
       gap: '1.25rem',
-      height: 'calc(100vh - 88px)',
+      height: 'calc(100vh - 200px)',
     }}
   >
     {sidebar}

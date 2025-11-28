@@ -1,6 +1,5 @@
 // components/chat/ChatPane.tsx
 import React from 'react';
-// import type { Message } from '../types/Message';
 
 export type Message = {
   _id: string;
@@ -13,18 +12,24 @@ export type Message = {
 
 type HeaderProps = {
   ticketCode?: string;
+  domain?: string;
+  subDomain?: string;
   subject?: string;
   clientName?: string;
   priority?: string;
+  resolution?: boolean
   onResolve?: () => void;
 };
 
 export const ChatPaneHeader: React.FC<HeaderProps> = ({
   ticketCode,
+  domain,
+  subDomain,
   subject,
   clientName,
   priority,
-  onResolve,
+  resolution,
+  onResolve
 }) => (
   <div
     style={{
@@ -55,7 +60,7 @@ export const ChatPaneHeader: React.FC<HeaderProps> = ({
       <div>
         <div style={{ fontSize: 15, fontWeight: 600 }}>{clientName || 'Client'}</div>
         <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>
-          {ticketCode} • {subject}
+          {ticketCode} • {domain} • {subDomain} • {priority} • {subject} 
         </div>
       </div>
     </div>

@@ -25,6 +25,10 @@ type ConversationSummary = {
   _id: string;
   code?: string;
   ticket: {
+    masterDomain: string | undefined;
+    subDomain: string;
+    priority: string | undefined;
+    code: string;
     _id: string;
     subject: string;
     status: 'open' | 'accepted' | 'resolved';
@@ -34,15 +38,12 @@ type ConversationSummary = {
   updatedAt?: string;
 };
 
-const TICKET_STATUSES = ['open', 'accepted', 'resolved'] as const;
-
 export default function ChatWindow() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isSocketConnected, setIsSocketConnected] = useState(false);
-  const [activeTab, setActiveTab] = useState<'open' | 'accepted' | 'resolved'>('open');
 
   const user = useContext(AuthContext);
   const userId = user?._id;
@@ -117,7 +118,16 @@ export default function ChatWindow() {
 
   const filteredConversations: ConversationListItem[] = conversations
   .filter((c) => c.ticket.status === 'accepted')
-  .map((c) => ({ ...c, ticket: { ...c.ticket, status: 'accepted' as const } }));
+  .map((c) => ({ 
+    ...c, 
+    ticket: { 
+      ...c.ticket, 
+      status: 'accepted' as const,
+      subDomain: c.ticket.subDomain,
+      masterDomain: c.ticket.masterDomain || 'General',
+      priority: c.ticket.priority || 'no priority',
+    } 
+  }));
 
 
   const currentConversation = conversations.find((c) => c._id === selectedId);
@@ -148,28 +158,10 @@ export default function ChatWindow() {
       />
 
       <ChatLayout>
-        <ChatHeader onBack={() => navigate('/employee/dashboard')} />
-
-        {/* <div style={{ marginBottom: '0.8rem' }}>
-          {TICKET_STATUSES.map((status) => (
-            <button
-              key={status}
-              onClick={() => setActiveTab(status)}
-              style={{
-                border: 'none',
-                borderRadius: 999,
-                padding: '0.4rem 1.1rem',
-                marginRight: 8,
-                background: activeTab === status ? '#2563eb' : 'transparent',
-                color: activeTab === status ? '#fff' : '#4b5563',
-                fontSize: 13,
-                cursor: 'pointer',
-              }}
-            >
-              {status}
-            </button>
-          ))}
-        </div> */}
+        <ChatHeader onBack={() => 
+          {user?.role === 'client' ? navigate('/tickets/new') : navigate('/employee/dashboard')}} 
+          title={user?.role === 'client' ? 'Create Ticket' : 'Ticket Dashboard'}
+          />
 
         <ChatShell
           sidebar={
@@ -178,6 +170,7 @@ export default function ChatWindow() {
               activeId={selectedId}
               currentUserId={userId}
               onSelect={setSelectedId}
+              disclaimer={user?.role === 'client' ? 'Tickets to be Resolved. Hang on!' : 'My Pending Tickets'}
             />
           }
           content={
@@ -192,17 +185,34 @@ export default function ChatWindow() {
                   height: '100%',
                 }}
               >
+                
                 <ChatPaneHeader
-                  ticketCode={currentConversation.code || currentConversation.ticket._id}
+                  ticketCode={currentConversation.code || currentConversation.ticket.code}
+                  domain={currentConversation.ticket.masterDomain}
+                  subDomain={currentConversation.ticket.subDomain}
+                  priority={currentConversation.ticket.priority}
                   subject={currentConversation.ticket.subject}
                   clientName={currentClient?.name}
+                  onResolve={
+                    user?.role === 'agent' &&
+                    currentConversation.ticket.status !== 'resolved'
+                      ? () => {
+                          API.post(`/tickets/${currentConversation.ticket._id}/resolve`);
+                        }
+                      : undefined
+
+                      // reload the page to reflect changes
+
+                  }
                 />
+                
                 <ChatMessages
                   messages={messages
                     .filter((m) => m.conversation !== null)
                     .map((m) => ({ ...m, conversation: m.conversation as string }))}
                   currentUserId={userId}
                 />
+                
                 <ChatInputBar
                   value={input}
                   disabled={!isSocketConnected}

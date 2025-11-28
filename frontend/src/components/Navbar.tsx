@@ -1,6 +1,7 @@
 // components/Navbar.tsx
 import React from 'react';
 import Button from './Button'; // optional – or use plain <Button>
+import API from '../api';
 
 type NavbarProps = {
   onDashboard?: () => void;
@@ -17,6 +18,21 @@ const Navbar: React.FC<NavbarProps> = ({
   userInitials = 'CU',
   online = true,
 }) => {
+  function onChat(): void {
+    throw new Error('Function not implemented.');
+  }
+
+  const handleLogout = async (auth: { logout: () => void; }) => {
+    try {
+      await API.post('/auth/logout'); 
+    } catch {
+      // ignore error, still clear local state
+    }
+
+    // Clear auth state / storage
+    auth?.logout?.(); // or auth.setUser(null); or remove token from localStorage
+  };
+
   return (
     <header
       style={{
@@ -127,6 +143,32 @@ const Navbar: React.FC<NavbarProps> = ({
             {online ? 'Online' : 'Offline'}
           </div>
 
+          {/* Break pill */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '0.4rem 0.9rem',
+              borderRadius: 999,
+              border: '1px solid #f7f3bbff',
+              background: '#fdfbecff',
+              fontSize: 14,
+              color: '#c8b315ff',
+              fontWeight: 500,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '999px',
+                background: online ? '#c5c022ff' : '#9ca3af',
+              }}
+            />
+            {online ? 'Online' : 'Offline'}
+          </div>
+
           {/* User pill */}
           <div
             style={{
@@ -162,7 +204,8 @@ const Navbar: React.FC<NavbarProps> = ({
 
           {/* Logout pill */}
           <Button
-            onClick={onLogout ?? (() => {})}
+            onClick={onLogout ?? (() => handleLogout({ logout: () => {} }))}
+    
             style={{
               display: 'inline-flex',
               alignItems: 'center',

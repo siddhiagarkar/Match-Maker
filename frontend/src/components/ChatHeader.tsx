@@ -1,11 +1,12 @@
 // components/chat/ChatHeader.tsx
-import React from 'react';
+import React, { use } from 'react';
 
 type Props = {
   onBack?: () => void;
+  title: string;
 };
 
-export const ChatHeader: React.FC<Props> = ({ onBack }) => (
+export const ChatHeader: React.FC<Props> = ({ onBack, title }) => (
   <div
     style={{
       display: 'flex',
@@ -30,7 +31,9 @@ export const ChatHeader: React.FC<Props> = ({ onBack }) => (
         </button>
       )}
       <div>
-        <div style={{ fontSize: '1.4rem', fontWeight: 600 }}>My Tickets</div>
+        <div style={{ fontSize: '1.4rem', fontWeight: 600 }}>
+          {title}
+        </div>
       </div>
     </div>
   </div>

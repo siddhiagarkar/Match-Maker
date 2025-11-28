@@ -6,6 +6,7 @@ import Dropdown from '../components/Dropdown';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { ChatHeader } from '../components/ChatHeader';
 
 export default function TicketPostForm() {
   const [priority, setPriority] = useState('');
@@ -24,6 +25,7 @@ export default function TicketPostForm() {
     if (!user) return; // can also redirect to login here
     if (user.role !== 'client') {
       navigate('/'); // or '/employee/dashboard'
+      // alert('Unauthorized') 
     }
   }, [user, navigate]);
 
@@ -140,6 +142,12 @@ export default function TicketPostForm() {
           padding: '3.5rem 1rem 2.5rem'
         }}
       >
+        <ChatHeader onBack={() => 
+                  {navigate('/chat') }
+                } 
+                  title={user?.role === 'client' ? 'My Tickets' : 'Ticket Dashboard'}
+                  />
+        
         <div
           style={{
             width: '100%',
@@ -148,7 +156,8 @@ export default function TicketPostForm() {
             borderRadius: 24,
             boxShadow: '0 18px 45px rgba(15,23,42,0.06)',
             padding: '2.3rem 2.6rem',
-            border: '1px solid #eef0f7'
+            border: '1px solid #eef0f7',
+            marginTop: '10rem'
           }}
         >
           <h2
@@ -281,8 +290,13 @@ export default function TicketPostForm() {
                   borderRadius: 999,
                   padding: '0.7rem 1.9rem',
                   fontSize: 15,
+                  
                   fontWeight: 600,
-                  boxShadow: '0 10px 22px rgba(37,99,235,0.35)'
+                  background: loading ? '#d1d5db' : '#2563eb',
+                  color: '#fff',
+                  boxShadow: loading ? 'none' : '0 4px 12px rgba(37,99,235,0.35)',
+                  width: '100%',
+                  justifyContent: 'center',
                 }}
               >
                 {loading ? 'Submitting…' : 'Send Request'}

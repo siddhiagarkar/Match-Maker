@@ -42,14 +42,13 @@ function getPriorityStyle(priority?: string) {
 export default function EmployeeDashboard() {
     const [activeTab, setActiveTab] = useState<'open' | 'accepted' | 'resolved'>('open');
     const [tickets, setTickets] = useState<Ticket[]>([]);
+    // const [allUser, setAllUser] = useState<User[]>([]);
     const [loading, setLoading] = useState(false);
     const [stats, setStats] = useState<Stats>({ total: 0, open: 0, accepted: 0, resolved: 0 });
 
     const user = useContext(AuthContext);
     const navigate = useNavigate();
 
-    // load stats once
-    useEffect(() => {
         const fetchStats = async () => {
             try {
                 const response = await API.get('/tickets/dashboard-all');
@@ -65,8 +64,8 @@ export default function EmployeeDashboard() {
                 setStats({ total: 0, open: 0, accepted: 0, resolved: 0 });
             }
         };
+
         fetchStats();
-    }, []);
 
     // load tickets for active tab
     useEffect(() => {
@@ -79,11 +78,14 @@ export default function EmployeeDashboard() {
 
     const handleAccept = async (ticketId: string) => {
         await API.post(`/tickets/${ticketId}/accept`);
+        fetchStats();
         setTickets(prev => prev.filter(t => t._id !== ticketId));
+
     };
 
     const handleResolve = async (ticketId: string) => {
         await API.post(`/tickets/${ticketId}/resolve`);
+        fetchStats();
         setTickets(prev => prev.filter(t => t._id !== ticketId));
     };
 
@@ -122,23 +124,19 @@ export default function EmployeeDashboard() {
                         <StatCard
                             title="Total Tickets"
                             count={stats.total}
-                            bgColor="#F9FAFB"
-                        />
+                            bgColor="#F9FAFB" icon={undefined}                        />
                         <StatCard
                             title="Open"
                             count={stats.open}
-                            bgColor="#E0E8F9"
-                        />
+                            bgColor="#E0E8F9" icon={undefined}                        />
                         <StatCard
                             title="Accepted"
                             count={stats.accepted}
-                            bgColor="#FEF9E0"
-                        />
+                            bgColor="#FEF9E0" icon={undefined}                        />
                         <StatCard
                             title="Resolved"
                             count={stats.resolved}
-                            bgColor="#D1FADF"
-                        />
+                            bgColor="#D1FADF" icon={undefined}                        />
                     </div>
 
                     {/* Tabs row */}
@@ -186,11 +184,16 @@ export default function EmployeeDashboard() {
                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 17 }}>
                                 <thead>
                                     <tr style={{ height: "52px", background: "#fff" }}>
-                                        <th style={thStyle}>Ticket</th>
+                                        <th style={thStyle}>Ticket Code</th>
                                         <th style={thStyle}>Client</th>
-                                        <th style={thStyle}>Category</th>
-                                        <th style={thStyle}>Subject</th>
+                                        <th style={thStyle}>Query</th>
+                                        <th style={thStyle}>Sub-query</th>
+                                        <th style={thStyle}>Comment</th>
                                         <th style={thStyle}>Priority</th>
+                                        <th style={thStyle}>Timestamps</th>
+                                        {/* {TABS.map(tab => ( 
+                                            activeTab
+                                        ))} */}
                                         <th style={thStyle}>Handler</th>
                                         <th style={thStyle}>Actions</th>
                                     </tr>
@@ -215,11 +218,14 @@ export default function EmployeeDashboard() {
                                             <td style={tdStyle}>{ticket.client?.name || "Unknown"}</td>
                                             <td style={tdStyle}>
                                                 <div style={{ fontWeight: 500 }}>{ticket.masterDomain}</div>
-                                                <div style={{ color: "#71717a", fontSize: 14 }}>{ticket.subDomain || '-'}</div>
+                                            </td>
+
+                                            <td style={tdStyle}>
+                                                <div style={{ color: "#71717a", fontWeight: 500 }}>{ticket.subDomain || '-'}</div>
                                             </td>
                                             <td style={tdStyle}>
                                                 <div>{ticket.subject}</div>
-                                                {ticket.additional_comment && (
+                                                {/* {ticket.additional_comment && (
                                                     <button
                                                         style={{
                                                             color: "#2563eb",
@@ -233,7 +239,7 @@ export default function EmployeeDashboard() {
                                                     >
                                                         View comments
                                                     </button>
-                                                )}
+                                                )} */}
                                             </td>
                                             <td style={tdStyle}>
                                                 <span style={{
@@ -249,8 +255,11 @@ export default function EmployeeDashboard() {
                                                 </span>
                                             </td>
                                             <td style={tdStyle}>
+                                                <div style={{ color: "#71717a", fontWeight: 500 }}>{ticket.createdAt || '-'}</div>
+                                            </td>
+                                            <td style={tdStyle}>
                                                 <span style={{ color: "#a1a1aa" }}>
-                                                    {ticket.acceptedBy?.name || "Unassigned"}
+                                                    {typeof ticket.acceptedBy === 'string' ? ticket.acceptedBy : ticket.acceptedBy?.name || "Unassigned"}
                                                 </span>
                                             </td>
                                             <td style={{ ...tdStyle, minWidth: 170 }}>

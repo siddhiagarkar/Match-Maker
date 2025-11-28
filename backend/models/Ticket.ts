@@ -6,7 +6,7 @@ const ticketSchema = new mongoose.Schema({
     priority: { type: String, enum: ['urgent', 'high', 'medium', 'low'], default: 'low' },
     masterDomain: { type: String, required: true },
     subDomain: { type: String, required: false },
-    subject: { type: String },
+    subject: { type: String, required: false },
     additional_comment: {type: String},
     status: { type: String, enum: ['open', 'accepted', 'resolved'], default: 'open' },
     acceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
