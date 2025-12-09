@@ -7,6 +7,7 @@ type DropdownProps = {
   onChange: (value: string) => void;
   disabled?: boolean;
   required?: boolean;
+  placeholder?: string;
   style?: React.CSSProperties;
 };
 
@@ -16,7 +17,7 @@ const Dropdown: React.FC<DropdownProps> = ({
   value,
   onChange,
   disabled,
-  required,
+  required = false,
   style,
 }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 6, ...style }}>

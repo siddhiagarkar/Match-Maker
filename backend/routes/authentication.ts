@@ -63,6 +63,9 @@ router.post('/logout', auth, async (req: any, res: any) => {
 
         // For JWT, logout = instructing frontend to forget the token
         res.json({ message: 'Logged out successfully.' });
+        localStorage.removeItem('user');
+        setUser(null);
+        console.log('Logout successful from the route,  I think.');
     } catch (err) {
         console.error('Logout error:', err); // Add logging to see the actual error
         res.status(500).json({ error: 'Logout failed.' });
@@ -70,3 +73,7 @@ router.post('/logout', auth, async (req: any, res: any) => {
 });
 
 module.exports = router;
+function setUser(arg0: null) {
+    throw new Error("Function not implemented.");
+}
+

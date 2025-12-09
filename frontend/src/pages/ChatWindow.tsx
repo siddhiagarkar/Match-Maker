@@ -117,12 +117,12 @@ export default function ChatWindow() {
   };
 
   const filteredConversations: ConversationListItem[] = conversations
-  .filter((c) => c.ticket.status === 'accepted')
+  .filter((c) => c.ticket.status === 'accepted' || c.ticket.status === 'resolved')
   .map((c) => ({ 
     ...c, 
     ticket: { 
       ...c.ticket, 
-      status: 'accepted' as const,
+      status: c.ticket.status as 'accepted' | 'resolved',
       subDomain: c.ticket.subDomain,
       masterDomain: c.ticket.masterDomain || 'General',
       priority: c.ticket.priority || 'no priority',
@@ -131,8 +131,8 @@ export default function ChatWindow() {
 
 
   const currentConversation = conversations.find((c) => c._id === selectedId);
-  const currentClient =
-    currentConversation?.participants.find((p) => p._id !== userId) || undefined;
+  const currentClient = currentConversation?.participants.find((p) => p._id !== userId) || undefined;
+
 
   return (
     <>
@@ -170,7 +170,8 @@ export default function ChatWindow() {
               activeId={selectedId}
               currentUserId={userId}
               onSelect={setSelectedId}
-              disclaimer={user?.role === 'client' ? 'Tickets to be Resolved. Hang on!' : 'My Pending Tickets'}
+              disclaimer={user?.role === 'client' ? '' : 'My Tickets'}
+              msg_noTickets={user?.role === 'client' ? 'NO TICKETS ACCEPTED/CREATED AS YET.' : 'WOHOO NO PENDING TICKETS!' }
             />
           }
           content={
@@ -185,6 +186,7 @@ export default function ChatWindow() {
                   height: '100%',
                 }}
               >
+
                 
                 <ChatPaneHeader
                   ticketCode={currentConversation.code || currentConversation.ticket.code}
@@ -197,10 +199,15 @@ export default function ChatWindow() {
                     user?.role === 'agent' &&
                     currentConversation.ticket.status !== 'resolved'
                       ? () => {
-                          API.post(`/tickets/${currentConversation.ticket._id}/resolve`);
+                          API.post(`/tickets/${currentConversation.ticket._id}/resolve`); 
+                          setConversations(prev =>
+                                            prev.filter(
+                                              c => c.ticket._id !== currentConversation.ticket._id
+                                            )
+                                          );                       
+                          alert('Successfully resolved the ticket!');
                         }
                       : undefined
-
                       // reload the page to reflect changes
 
                   }

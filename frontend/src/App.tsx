@@ -9,6 +9,8 @@ import type { JSX } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import TicketPostForm from './pages/TicketPostForm';
 import EmployeeDashboard from './pages/EmployeeDashboard';
+import RequireAuth from './components/RequireAuth';
+import TicketInfo from './pages/TicketInfo';
 
 
 function PrivateRoute({ children }: { children: JSX.Element }): JSX.Element {
@@ -63,16 +65,24 @@ function App() {
                         <Login setUser={setUser} />   // Pass setUser to log in
                     } />
                     <Route path="/register" element={<Register />} />
-                    <Route path="/chat" element={
-                        <PrivateRoute>
-                            <Chat />
-                        </PrivateRoute>
-                    } />
-                    <Route path="*" element={<Navigate to="/login" />} />
-                    <Route path="/tickets/new" element={<TicketPostForm />} />
-                    <Route path="/employee/dashboard" element={
-                         <EmployeeDashboard />
-                    } />
+
+                    {/* all the following routes will require authentication */}
+                    <Route element={<RequireAuth />}>
+                            <Route path="/chat" element={
+                                <PrivateRoute>
+                                    <Chat />
+                                </PrivateRoute>
+                            } />
+                            <Route path="*" element={<Navigate to="/login" />} />
+                            <Route path="/tickets/new" element={<TicketPostForm />} />
+                            <Route path="/employee/dashboard" element={
+                                <EmployeeDashboard />
+                            } />
+
+                            <Route path="/tickets/:ticketId" element={<TicketInfo />} />
+                    </Route>
+
+
                 </Routes>
             </BrowserRouter>
         </AuthContext.Provider>

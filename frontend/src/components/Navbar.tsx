@@ -22,16 +22,22 @@ const Navbar: React.FC<NavbarProps> = ({
     throw new Error('Function not implemented.');
   }
 
-  const handleLogout = async (auth: { logout: () => void; }) => {
-    try {
-      await API.post('/auth/logout'); 
-    } catch {
-      // ignore error, still clear local state
-    }
+  const handleLogout = async () => {
+  try {
+    await API.post('/auth/logout'); // backend cleanup
+    localStorage.removeItem('user');
+    setUser(null);
+    console.log('clicked')
+    console.log('Logout successful I think.');
+  } catch (err) {
+    console.error('Logout failed, clearing local state anyway', err);
+    localStorage.removeItem('user');
+    setUser(null);
+  } finally {
+    window.location.href = '/login'; // redirect to login page
+  }
+};
 
-    // Clear auth state / storage
-    auth?.logout?.(); // or auth.setUser(null); or remove token from localStorage
-  };
 
   return (
     <header
@@ -204,7 +210,10 @@ const Navbar: React.FC<NavbarProps> = ({
 
           {/* Logout pill */}
           <Button
-            onClick={onLogout ?? (() => handleLogout({ logout: () => {} }))}
+            onClick={() => {
+              console.log('Logout button clicked (raw)');
+              handleLogout();
+            }}
     
             style={{
               display: 'inline-flex',
@@ -229,3 +238,7 @@ const Navbar: React.FC<NavbarProps> = ({
 };
 
 export default Navbar;
+function setUser(arg0: null) {
+  throw new Error('Function not implemented.');
+}
+

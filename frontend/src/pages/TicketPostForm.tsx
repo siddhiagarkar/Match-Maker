@@ -1,6 +1,5 @@
 import { useContext, useEffect, useState } from 'react';
 import Input from '../components/Input';
-import Button from '../components/Button';
 import API from '../api';
 import Dropdown from '../components/Dropdown';
 import Navbar from '../components/Navbar';
@@ -78,10 +77,10 @@ export default function TicketPostForm() {
       setError('Please specify your subject for "Other" domain.');
       return;
     }
-    if (masterDomain !== 'other' && subdomainOptionsMap[masterDomain] && !subDomain) {
-      setError('Please select a subdomain.');
-      return;
-    }
+    // if (masterDomain !== 'other' && subdomainOptionsMap[masterDomain] && !subDomain) {
+    //   setError('Please select a subdomain.');
+    //   return;
+    // }
     if (masterDomain == 'other' && !subject.trim()) {
       setError('Please provide a brief description of your issue.');
       return;
@@ -237,7 +236,7 @@ export default function TicketPostForm() {
                     setMasterDomain(val);
                     setSubDomain('');
                   }}
-                  required
+                  required={true}
                   style={{
                     borderRadius: 999,
                     borderColor: '#e5e7eb',
@@ -259,8 +258,8 @@ export default function TicketPostForm() {
                   ...subdomainOptionsMap[masterDomain]
                 ]}
                 value={subDomain}
+                
                 onChange={setSubDomain}
-                required
                 style={{
                   borderRadius: 999,
                   borderColor: '#e5e7eb',
@@ -306,6 +305,7 @@ export default function TicketPostForm() {
                   cursor: loading ? 'not-allowed' : 'pointer',
                 }}
               >
+                {/* STATE UPDATION NEEDED HERE FOR OPEN TICKETS STATS ETC. */}
                 {loading ? 'Submitting…' : 'SEND QUERY'}
               </button>
             </div>

@@ -10,7 +10,14 @@ const ticketSchema = new mongoose.Schema({
     additional_comment: {type: String},
     status: { type: String, enum: ['open', 'accepted', 'resolved'], default: 'open' },
     acceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+
+    // new supervision fields
+    acceptedAt: { type: Date },            // when agent accepted
+    resolvedAt: { type: Date },            // when marked resolved
+
+    // ETA provided by agent when accepting
+    estimatedResolutionAt: { type: Date },
 });
 
 module.exports = mongoose.model('Ticket', ticketSchema);

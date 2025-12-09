@@ -96,28 +96,44 @@ export const ChatMessages: React.FC<MessagesProps> = ({ messages, currentUserId 
   >
     {messages.map((m) => {
       const isMe = String(m.sender) === String(currentUserId);
+      let lastDate: string | null = null;
       return (
+              <div
+        key={m._id}
+        style={{
+          display: 'flex',
+          justifyContent: isMe ? 'flex-end' : 'flex-start',
+          marginBottom: '1rem',
+        }}
+      >
         <div
-          key={m._id}
           style={{
-            display: 'flex',
-            justifyContent: isMe ? 'flex-end' : 'flex-start',
-            marginBottom: '1rem',
+            maxWidth: '70%',
+            background: isMe ? '#2563eb' : '#e5e7eb',
+            color: isMe ? '#fff' : '#111827',
+            padding: '0.6rem 0.9rem',
+            borderRadius: 18,
+            fontSize: 14,
           }}
         >
+          <div>{m.content}</div>
           <div
             style={{
-              maxWidth: '70%',
-              background: isMe ? '#2563eb' : '#e5e7eb',
-              color: isMe ? '#fff' : '#111827',
-              padding: '0.6rem 0.9rem',
-              borderRadius: 18,
-              fontSize: 14,
+              marginTop: 4,
+              fontSize: 11,
+              opacity: 0.7,
+              textAlign: isMe ? 'right' : 'left',
             }}
           >
-            {m.content}
+            {m.createdAt &&
+              new Date(m.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
           </div>
         </div>
+      </div>
+
       );
     })}
   </div>

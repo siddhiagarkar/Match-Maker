@@ -57,36 +57,106 @@ router.post('/', auth, async (req: any, res: any) => {
     res.status(201).json(ticket);
 });
 
+function buildDateFilter(query: any) {
+  const { from, to } = query;
+
+  if (!from && !to) return {};
+
+  const createdAt: any = {};
+
+  if (from) {
+    // from is 'YYYY-MM-DD' from <input type="date">
+    createdAt.$gte = new Date(from);
+  }
+
+  if (to) {
+    // make `to` inclusive by going to end of the day
+    const end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+    createdAt.$lte = end;
+  }
+
+  return { createdAt };
+}
+
+
 
 // Anyone (employee): dashboard - get all open tickets
 router.get('/dashboard-open', auth, async (req: any, res: any) => {
-    console.log(req.user.role);
-    if (req.user.role !== 'agent' && req.user.role!== 'admin') return res.status(403).json({ error: "Only employees can view dashboard" });
-    const tickets = await Ticket.find({ status: 'open' }).populate('client', 'name');
-    res.json(tickets);
+  if (req.user.role !== 'agent' && req.user.role !== 'admin') {
+    return res.status(403).json({ error: "Only employees can view dashboard" });
+  }
+
+  const dateFilter = buildDateFilter(req.query);
+
+  const tickets = await Ticket.find({
+    status: 'open',
+    ...dateFilter,
+  })
+    .populate('client', 'name');
+
+  res.json(tickets);
 });
+
 
 // Anyone (employee): dashboard - get all accepted tickets
 router.get('/dashboard-accepted', auth, async (req: any, res: any) => {
-    if (req.user.role !== 'agent' && req.user.role !== 'admin') return res.status(403).json({ error: "Only employees can view dashboard" });
-    const tickets = await Ticket.find({ status: 'accepted' }).populate('client', 'name');
-    res.json(tickets);
+  if (req.user.role !== 'agent' && req.user.role !== 'admin') {
+    return res.status(403).json({ error: "Only employees can view dashboard" });
+  }
+
+  const dateFilter = buildDateFilter(req.query);
+
+  const tickets = await Ticket.find({
+    status: 'accepted',
+    ...dateFilter,
+  })
+    .populate('client', 'name')
+    .populate('acceptedBy', 'name')
+    .lean();
+
+  res.json(tickets);
 });
+
 
 // Anyone (employee): dashboard - get all resolved tickets
 router.get('/dashboard-resolved', auth, async (req: any, res: any) => {
-    if (req.user.role !== 'agent' && req.user.role!== 'admin') return res.status(403).json({ error: "Only employees can view dashboard" });
-    const tickets = await Ticket.find({ status: 'resolved' }).populate('client', 'name');
-    res.json(tickets);
+  if (req.user.role !== 'agent' && req.user.role !== 'admin') {
+    return res.status(403).json({ error: "Only employees can view dashboard" });
+  }
+
+  const dateFilter = buildDateFilter(req.query);
+
+  const tickets = await Ticket.find({
+    status: 'resolved',
+    ...dateFilter,
+  })
+    .populate('client', 'name')
+    .populate('acceptedBy', 'name')
+    .lean();
+
+  res.json(tickets);
 });
+
 
 // Anyone (employee): dashboard - get ALL tickets
 router.get('/dashboard-all', auth, async (req: any, res: any) => {
-    console.log(req.user.role);
-    if (req.user.role !== 'agent' && req.user.role !== 'admin') return res.status(403).json({ error: "Only employees and admin can view dashboard" });
-    const tickets = await Ticket.find().populate('client', 'name');
-    res.json(tickets);
+  if (req.user.role !== 'agent' && req.user.role !== 'admin') {
+    return res.status(403).json({ error: "Only employees and admin can view dashboard" });
+  }
+
+  const dateFilter = buildDateFilter(req.query);
+
+  const tickets = await Ticket.find({
+    ...dateFilter,
+  })
+    .populate('client', 'name')
+    .populate('acceptedBy', 'name')
+    .lean();
+
+  res.json(tickets);
 });
+
 
 // Employee: accept ticket
 router.post('/:id/accept', auth, async (req: any, res: any) => {
@@ -94,7 +164,7 @@ router.post('/:id/accept', auth, async (req: any, res: any) => {
     // Atomic update to avoid race conditions
     const ticket = await Ticket.findOneAndUpdate(
         { _id: req.params.id, status: 'open' },
-        { status: 'accepted', acceptedBy: req.user._id },
+        { status: 'accepted', acceptedBy: req.user._id, acceptedAt: new Date(), estimatedResolutionAt: new Date(req.body.estimatedResolutionAt) },
         { new: true }
     );
     if (!ticket) return res.status(400).json({ error: 'Ticket already accepted or not found' });
@@ -113,7 +183,7 @@ router.post('/:id/resolve', auth, async (req: any, res: any) => {
     if (req.user.role !== 'agent') return res.status(403).json({ error: "Only employees can resolve tickets" });
     const ticket = await Ticket.findOneAndUpdate(
         { _id: req.params.id, status: 'accepted', acceptedBy: req.user._id },
-        { status: 'resolved' },
+        { status: 'resolved', resolvedAt: new Date() },
         { new: true }
     );
     if (!ticket) return res.status(400).json({ error: 'Ticket not found or not accepted by you' });
@@ -168,6 +238,27 @@ router.get('/suggestions', auth, async (req: any, res: any) => {
 
     res.json(ticketSuggestions);
 });
+
+
+// GET /tickets/:id - get full ticket details
+router.get('/:id', auth, async (req: any, res: any) => {
+  try {
+    const ticket = await Ticket.findById(req.params.id)
+      .populate('client', 'name email')
+      .populate('acceptedBy', 'name email')
+      .lean();
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    res.json(ticket);
+  } catch (err) {
+    console.error('Error fetching ticket', err);
+    res.status(500).json({ error: 'Failed to fetch ticket' });
+  }
+});
+
 
 
 module.exports = router;

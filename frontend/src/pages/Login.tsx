@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode';
 import API from '../api';
 import Input from '../components/Input';
 import Button from '../components/Button';
@@ -22,7 +21,10 @@ export default function Login({ setUser }: { setUser: (u: User) => void }) {
             setUser(userObj); // Updates the AuthContext
             localStorage.setItem('user', JSON.stringify(userObj)); // Persists for reloads
             console.log("Redirecting to chat page");
+            if (role === 'agent' || role === 'admin')
             navigate("/chat");
+            else
+            navigate("/tickets/new");
             console.log("On login, the user details are - ", userObj);
         } catch (error) {
             setErr(error.response?.data?.error || 'Login failed');
