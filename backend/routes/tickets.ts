@@ -4,6 +4,7 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const router = express.Router();
 const Conversation = require('../models/Conversation');
+const {getCache, setCache} = require('../src/utils/cache');
 
 // Client: create ticket
 // Helper to sanitize client name for code
@@ -86,16 +87,38 @@ router.get('/dashboard-open', auth, async (req: any, res: any) => {
   if (req.user.role !== 'agent' && req.user.role !== 'admin') {
     return res.status(403).json({ error: "Only employees can view dashboard" });
   }
-
+  const start = Date.now();
   const dateFilter = buildDateFilter(req.query);
 
-  const tickets = await Ticket.find({
-    status: 'open',
-    ...dateFilter,
-  })
-    .populate('client', 'name');
+  try {
+    const dateFilter = buildDateFilter(req.query);
+    const cacheKey = `tickets:dashboard-open:${JSON.stringify(req.query)}`;
 
-  res.json(tickets);
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      const duration = Date.now() - start;
+      console.log(`[CACHE HIT] /dashboard-open in ${duration} ms`);
+      return res.json(cached);
+    }
+
+    const tickets = await Ticket.find({
+      status: 'open',
+      ...dateFilter,
+    })
+      .populate('client', 'name')
+      .lean();
+
+    await setCache(cacheKey, tickets, 60);
+
+    const duration = Date.now() - start;
+    console.log(`[CACHE MISS] /dashboard-open in ${duration} ms`);
+
+    res.json(tickets);
+  } catch (err) {
+    const duration = Date.now() - start;
+    console.error(`[ERROR] /dashboard-open after ${duration} ms`, err);
+    res.status(500).json({ error: 'Failed to load open tickets' });
+  }
 });
 
 
@@ -106,16 +129,38 @@ router.get('/dashboard-accepted', auth, async (req: any, res: any) => {
   }
 
   const dateFilter = buildDateFilter(req.query);
+  const start = Date.now();
 
-  const tickets = await Ticket.find({
-    status: 'accepted',
-    ...dateFilter,
-  })
-    .populate('client', 'name')
-    .populate('acceptedBy', 'name')
-    .lean();
+  try {
+    const dateFilter = buildDateFilter(req.query);
+    const cacheKey = `tickets:dashboard-accepted:${JSON.stringify(req.query)}`;
 
-  res.json(tickets);
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      const duration = Date.now() - start;
+      console.log(`[CACHE HIT] /dashboard-accepted in ${duration} ms`);
+      return res.json(cached);
+    }
+
+    const tickets = await Ticket.find({
+      status: 'accepted',
+      ...dateFilter,
+    })
+      .populate('client', 'name')
+      .populate('acceptedBy', 'name')
+      .lean();
+
+    await setCache(cacheKey, tickets, 60);
+
+    const duration = Date.now() - start;
+    console.log(`[CACHE MISS] /dashboard-accepted in ${duration} ms`);
+
+    res.json(tickets);
+  } catch (err) {
+    const duration = Date.now() - start;
+    console.error(`[ERROR] /dashboard-accepted after ${duration} ms`, err);
+    res.status(500).json({ error: 'Failed to load accepted tickets' });
+  }
 });
 
 
@@ -127,15 +172,38 @@ router.get('/dashboard-resolved', auth, async (req: any, res: any) => {
 
   const dateFilter = buildDateFilter(req.query);
 
-  const tickets = await Ticket.find({
-    status: 'resolved',
-    ...dateFilter,
-  })
-    .populate('client', 'name')
-    .populate('acceptedBy', 'name')
-    .lean();
+  const start = Date.now();
 
-  res.json(tickets);
+  try {
+    const dateFilter = buildDateFilter(req.query);
+    const cacheKey = `tickets:dashboard-resolved:${JSON.stringify(req.query)}`;
+
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      const duration = Date.now() - start;
+      console.log(`[CACHE HIT] /dashboard-resolved in ${duration} ms`);
+      return res.json(cached);
+    }
+
+    const tickets = await Ticket.find({
+      status: 'resolved',
+      ...dateFilter,
+    })
+      .populate('client', 'name')
+      .populate('acceptedBy', 'name')
+      .lean();
+
+    await setCache(cacheKey, tickets, 60);
+
+    const duration = Date.now() - start;
+    console.log(`[CACHE MISS] /dashboard-resolved in ${duration} ms`);
+
+    res.json(tickets);
+  } catch (err) {
+    const duration = Date.now() - start;
+    console.error(`[ERROR] /dashboard-resolved after ${duration} ms`, err);
+    res.status(500).json({ error: 'Failed to load resolved tickets' });
+  }
 });
 
 

@@ -7,6 +7,7 @@ import { AuthContext } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { TicketFilters, type TicketFilterState } from '../components/TicketFilters';
+import { ChatHeader } from '../components/ChatHeader';
 
 
 type Ticket = {
@@ -69,7 +70,7 @@ export default function EmployeeDashboard() {
     const navigate = useNavigate();
 
     const clientOptions = [
-    { label: 'All clients', value: 'all' as const },
+    { label: 'Clients', value: 'all' as const },
     ...Array.from(new Set(tickets.map(t => t.client?.name).filter(Boolean))).map(name => ({
         label: name as string,
         value: name as string,
@@ -77,7 +78,7 @@ export default function EmployeeDashboard() {
     ];
 
     const domainOptions = [
-    { label: 'All categories', value: 'all' as const },
+    { label: 'Domains', value: 'all' as const },
     ...Array.from(new Set(tickets.map(t => t.masterDomain).filter(Boolean))).map(d => ({
         label: d,
         value: d,
@@ -85,7 +86,7 @@ export default function EmployeeDashboard() {
     ];
 
     const priorityOptions = [
-    { label: 'All priorities', value: 'all' as const },
+    { label: 'Priorities', value: 'all' as const },
     { label: 'Urgent', value: 'urgent' },
     { label: 'High', value: 'high' },
     { label: 'Medium', value: 'medium' },
@@ -93,7 +94,7 @@ export default function EmployeeDashboard() {
     ];
 
     const handlerOptions = [
-    { label: 'All handlers', value: 'all' as const },
+    { label: 'Handlers', value: 'all' as const },
     ...Array.from(
         new Set(
         tickets
@@ -116,29 +117,58 @@ export default function EmployeeDashboard() {
         setDateRange(prev => ({ ...prev, [key]: value }));
         };
 
-        const fetchStats = async () => {
-            try {
-                const params: Record<string, string> = {};
-                if (dateRange.from) params.from = dateRange.from;
-                if (dateRange.to) params.to = dateRange.to;
-                const response = await API.get('/tickets/dashboard-all', {params});
-                const allTickets = response.data as Ticket[];
+        const applyFilters = (tickets: Ticket[], filters: TicketFilterState) => {
+        return tickets.filter(t => {
+            if (filters.client !== 'all' && t.client?.name !== filters.client) return false;
+            if (filters.domain !== 'all' && t.masterDomain !== filters.domain) return false;
+            if (filters.priority !== 'all' && t.priority !== filters.priority) return false;
 
-                setStats({
-                    total: allTickets.length,
-                    open: allTickets.filter(t => t.status === 'open').length,
-                    accepted: allTickets.filter(t => t.status === 'accepted').length,
-                    resolved: allTickets.filter(t => t.status === 'resolved').length,
-                });
-            } catch {
-                setStats({ total: 0, open: 0, accepted: 0, resolved: 0 });
-            }
+            const handlerName =
+            typeof t.acceptedBy === 'string' ? t.acceptedBy : t.acceptedBy?.name || 'Unassigned';
+            if (filters.handler !== 'all' && handlerName !== filters.handler) return false;
+
+            return true;
+        });
         };
+
+        const visibleTickets = applyFilters(tickets, filters);
+
+
+        const fetchStats = async () => {
+        try {
+            const params: Record<string, string> = {};
+            if (dateRange.from) params.from = dateRange.from;
+            if (dateRange.to) params.to = dateRange.to;
+
+            const response = await API.get('/tickets/dashboard-all', { params });
+            const allTickets = response.data as Ticket[];
+
+            const filtered = applyFilters(allTickets, filters); // <- use same logic
+
+            setStats({
+            total: filtered.length,
+            open: filtered.filter(t => t.status === 'open').length,
+            accepted: filtered.filter(t => t.status === 'accepted').length,
+            resolved: filtered.filter(t => t.status === 'resolved').length,
+            });
+        } catch {
+            setStats({ total: 0, open: 0, accepted: 0, resolved: 0 });
+        }
+        };
+
 
           useEffect(() => {
             fetchStats();
-        }, [dateRange.from, dateRange.to]);
+            }, [
+            dateRange.from,
+            dateRange.to,
+            filters.client,
+            filters.domain,
+            filters.priority,
+            filters.handler,
+            ]);
 
+        
 
     // load tickets for active tab
       useEffect(() => {
@@ -207,17 +237,6 @@ export default function EmployeeDashboard() {
                 .toUpperCase()
             : 'CU';
 
-    const visibleTickets = tickets.filter(t => {
-    if (filters.client !== 'all' && t.client?.name !== filters.client) return false;
-    if (filters.domain !== 'all' && t.masterDomain !== filters.domain) return false;
-    if (filters.priority !== 'all' && t.priority !== filters.priority) return false;
-
-    const handlerName =
-        typeof t.acceptedBy === 'string' ? t.acceptedBy : t.acceptedBy?.name || 'Unassigned';
-    if (filters.handler !== 'all' && handlerName !== filters.handler) return false;
-
-    return true;
-    });
 
 
     return (
@@ -236,6 +255,11 @@ export default function EmployeeDashboard() {
             
             <div style={{ minHeight: "100vh", background: "#f7f8fa", padding: "2rem 0" }}>
                 <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+
+                    <ChatHeader onBack={() => 
+                          navigate('/chat')} 
+                          title={user?.role === 'agent' ? 'CHAT' : 'xyz'}
+                          />
                     {/* Stat cards row */}
                     <div style={{ display: "flex", gap: 32, marginBottom: 36 }}>
                         <StatCard

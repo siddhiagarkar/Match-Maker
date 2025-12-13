@@ -47,7 +47,7 @@ app.get('/api/protected', auth, (req: any, res: any) => {
 });
 
 
-// ====== SOCKET.IO SETUP ======
+// = SOCKET.IO SETUP =
 // 1. Create HTTP server from Express app
 const server = http.createServer(app);
 
@@ -59,3 +59,12 @@ setupSocket(server);
 server.listen(PORT, () => {
     console.log(`Server (Express + Socket.IO) running on port ${PORT}`);
 });
+
+// Initialize Redis
+const { initRedis } = require('./src/redisClient');
+(async () => {
+  await initRedis();          // connect to Redis
+  app.listen(4000, () => {
+    console.log('Server on 4000');
+  });
+})();

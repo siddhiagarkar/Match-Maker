@@ -29,6 +29,8 @@ const pillBase: React.CSSProperties = {
   background: '#f9fafb',
   fontSize: 13,
   cursor: 'pointer',
+  paddingBlock: 14,
+  paddingInline: 20,
 };
 
 const selectStyle: React.CSSProperties = {
@@ -53,6 +55,7 @@ export const TicketFilters: React.FC<Props> = ({
   return (
     <div
       style={{
+        ...pillBase,
         display: 'flex',
         gap: 12,
         alignItems: 'center',
@@ -61,13 +64,13 @@ export const TicketFilters: React.FC<Props> = ({
       }}
     >
       {/* Filters label pill */}
-      <div style={{ ...pillBase, background: '#f3f4f6' }}>
+      <div style={{ background: '#f3f4f6' }}>
         <span style={{ fontSize: 13, fontWeight: 600 }}>Filters</span>
       </div>
 
       {/* Client */}
-      <div style={pillBase}>
-        <span style={{ color: '#6b7280' }}>Client</span>
+      <div>
+        {/* <span style={{ color: '#6b7280' }}>Client</span> */}
         <select
           value={value.client}
           onChange={(e) => handleChange('client', e.target.value as any)}
@@ -82,8 +85,8 @@ export const TicketFilters: React.FC<Props> = ({
       </div>
 
       {/* Category / Domain */}
-      <div style={pillBase}>
-        <span style={{ color: '#6b7280' }}>Category</span>
+      <div >
+        {/* <span style={{ color: '#6b7280' }}>Category</span> */}
         <select
           value={value.domain}
           onChange={(e) => handleChange('domain', e.target.value as any)}
@@ -98,8 +101,8 @@ export const TicketFilters: React.FC<Props> = ({
       </div>
 
       {/* Priority */}
-      <div style={pillBase}>
-        <span style={{ color: '#6b7280' }}>Priority</span>
+      <div >
+        {/* <span style={{ color: '#6b7280' }}>Priority</span> */}
         <select
           value={value.priority}
           onChange={(e) => handleChange('priority', e.target.value as any)}
@@ -114,8 +117,8 @@ export const TicketFilters: React.FC<Props> = ({
       </div>
 
       {/* Handler */}
-      <div style={pillBase}>
-        <span style={{ color: '#6b7280' }}>Handler</span>
+      <div >
+        {/* <span style={{ color: '#6b7280' }}>Handler</span> */}
         <select
           value={value.handler}
           onChange={(e) => handleChange('handler', e.target.value as any)}

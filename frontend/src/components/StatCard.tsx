@@ -16,8 +16,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon, bgColor = "#fff
         boxShadow: "0 2px 8px #f7f7fa",
         border: "1.5px solid #ececec"
     }}>
-        <div style={{ fontSize: 19, fontWeight: 500, color: "#36373A", marginBottom: 13 }}>{title}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+        <div style={{ fontSize: 19, fontWeight: 500, color: "#36373A", marginBottom: 3 }}>{title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
             <span style={{ fontSize: 28, fontWeight: 600 }}>{count}</span>
             <span>{icon}</span>
         </div>
