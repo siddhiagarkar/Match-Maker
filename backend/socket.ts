@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const Message = require("./models/Message");
 const Conversation = require("./models/Conversation");
 const jwt = require("jsonwebtoken");
+const redisClient = require('../backend/src/redisClient'); // or import { redisClient } from './redisClient';
 
 function setupSocket(server: any) {
     const io = new Server(server, {
@@ -29,6 +30,7 @@ function setupSocket(server: any) {
         //}
 
         console.log('User connected:', socket.id, socket.user._id, socket.user.name);
+        
 
         // Join room
         socket.on('join_conversation', async (data: any) => {
@@ -95,7 +97,7 @@ function setupSocket(server: any) {
             });
         });
 
-        socket.on('disconnect', () => {
+        socket.on('disconnect', async () => {
             console.log(`User disconnected: ${socket.id}`);
         });
     });

@@ -8,6 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { TicketFilters, type TicketFilterState } from '../components/TicketFilters';
 import { ChatHeader } from '../components/ChatHeader';
+import Select from 'react-select';
 
 
 type Ticket = {
@@ -32,6 +33,10 @@ type Stats = {
     open: number;
     accepted: number;
     resolved: number;
+    org_total?: number;
+    org_open?: number;
+    org_accepted?: number;
+    org_resolved?: number;
 };
 
 
@@ -52,22 +57,28 @@ export default function EmployeeDashboard() {
     const [activeTab, setActiveTab] = useState<'open' | 'accepted' | 'resolved'>('accepted');
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(false);
-    const [stats, setStats] = useState<Stats>({ total: 0, open: 0, accepted: 0, resolved: 0 });
+    const [stats, setStats] = useState<Stats>({ org_total: 0, org_open: 0, org_accepted: 0, org_resolved: 0, total: 0, open: 0, accepted: 0, resolved: 0 });
 
     const [etaModalOpen, setEtaModalOpen] = useState(false);
     const [pendingTicketId, setPendingTicketId] = useState<string | null>(null);
     const [estimatedDate, setEstimatedDate] = useState<string>('');
 
-    // inside component
-    const [filters, setFilters] = useState<TicketFilterState>({
-    client: 'all',
-    domain: 'all',
-    priority: 'all',
-    handler: 'all',
-    });
+    const [visibleCount, setVisibleCount] = useState(2);
+
+    type SortOption = 'created-desc' | 'created-asc' | 'priority-desc' | 'priority-asc';
+    const [sortBy, setSortBy] = useState<SortOption>('created-desc');
 
     const user = useContext(AuthContext);
     const navigate = useNavigate();
+
+    const initialFilters: TicketFilterState = {
+    client: 'all',
+    domain: 'all',
+    priority: 'all',
+    handler: user?.name || 'all',
+    };
+
+    const [filters, setFilters] = useState<TicketFilterState>(initialFilters);
 
     const clientOptions = [
     { label: 'Clients', value: 'all' as const },
@@ -117,8 +128,8 @@ export default function EmployeeDashboard() {
         setDateRange(prev => ({ ...prev, [key]: value }));
         };
 
-        const applyFilters = (tickets: Ticket[], filters: TicketFilterState) => {
-        return tickets.filter(t => {
+        const applyFilters = (tickets: Ticket[], filters: TicketFilterState, sortBy: SortOption) => {
+        const filtered = tickets.filter(t => {
             if (filters.client !== 'all' && t.client?.name !== filters.client) return false;
             if (filters.domain !== 'all' && t.masterDomain !== filters.domain) return false;
             if (filters.priority !== 'all' && t.priority !== filters.priority) return false;
@@ -129,9 +140,33 @@ export default function EmployeeDashboard() {
 
             return true;
         });
+
+        const sorted = [...filtered];
+
+        sorted.sort((a, b) => {
+            switch (sortBy) {
+            case 'created-asc':
+                return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            case 'created-desc':
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            case 'priority-desc': {
+                const order = { urgent: 4, high: 3, medium: 2, low: 1 } as const;
+                return (order[b.priority || 'low'] ?? 0) - (order[a.priority || 'low'] ?? 0);
+            }
+            case 'priority-asc': {
+                const order = { urgent: 4, high: 3, medium: 2, low: 1 } as const;
+                return (order[a.priority || 'low'] ?? 0) - (order[b.priority || 'low'] ?? 0);
+            }
+            default:
+                return 0;
+            }
+        });
+
+        return sorted;
         };
 
-        const visibleTickets = applyFilters(tickets, filters);
+
+        const visibleTickets = applyFilters(tickets, filters, sortBy);
 
 
         const fetchStats = async () => {
@@ -143,9 +178,14 @@ export default function EmployeeDashboard() {
             const response = await API.get('/tickets/dashboard-all', { params });
             const allTickets = response.data as Ticket[];
 
-            const filtered = applyFilters(allTickets, filters); // <- use same logic
+            const filtered = applyFilters(allTickets, filters, sortBy); 
 
             setStats({
+            org_total: allTickets.length,
+            org_open: allTickets.filter(t => t.status === 'open').length,
+            org_accepted: allTickets.filter(t => t.status === 'accepted').length,
+            org_resolved: allTickets.filter(t => t.status === 'resolved').length,
+
             total: filtered.length,
             open: filtered.filter(t => t.status === 'open').length,
             accepted: filtered.filter(t => t.status === 'accepted').length,
@@ -237,6 +277,10 @@ export default function EmployeeDashboard() {
                 .toUpperCase()
             : 'CU';
 
+    useEffect(() => {
+    setVisibleCount(2);
+    }, [activeTab, dateRange.from, dateRange.to, filters.client, filters.domain, filters.priority, filters.handler]);
+
 
 
     return (
@@ -256,19 +300,19 @@ export default function EmployeeDashboard() {
             <div style={{ minHeight: "100vh", background: "#f7f8fa", padding: "2rem 0" }}>
                 <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
-                    <ChatHeader onBack={() => 
+                    {/* <ChatHeader onBack={() => 
                           navigate('/chat')} 
                           title={user?.role === 'agent' ? 'CHAT' : 'xyz'}
-                          />
+                          /> */}
                     {/* Stat cards row */}
-                    <div style={{ display: "flex", gap: 32, marginBottom: 36 }}>
-                        <StatCard
+                    <div style={{ display: "flex", gap: 32, marginBottom: 0 }}>
+                        {/* <StatCard
                             title="Total Tickets"
                             count={stats.total}
-                            bgColor="#F9FAFB" icon={undefined}                        />
+                            bgColor="#F9FAFB" icon={undefined}                        /> */}
                         <StatCard
                             title="Open"
-                            count={stats.open}
+                            count={stats.org_open}
                             bgColor="#E0E8F9" icon={undefined}                        />
                         <StatCard
                             title="Accepted"
@@ -276,8 +320,14 @@ export default function EmployeeDashboard() {
                             bgColor="#FEF9E0" icon={undefined}                        />
                         <StatCard
                             title="Resolved"
-                            count={stats.resolved}
+                            count={stats.org_resolved}
                             bgColor="#D1FADF" icon={undefined}                        />
+
+                        <StatCard
+                            title="Online Agents"
+                            count={0}
+                            bgColor="#fbeedfff" icon={undefined}                        />
+
 
                         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24}}>
                         <div
@@ -289,13 +339,14 @@ export default function EmployeeDashboard() {
                             borderRadius: 12,
                             background: "#ffffff",
                             boxShadow: "0 1px 4px rgba(15,23,42,0.08)",
-                            minWidth: 170,
+                            minWidth: "10%",
                             fontSize: 14,
                             color: "#374151",
+                            height: "100%",
                             }}
                         >
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 20px" }}>
-                            <span style={{ fontWeight: 500 }}>From</span>
+                            <div style={{ display: "flex", flexDirection: "row", gap: 4, padding: "15px 20px" }}>
+                            <span style={{ fontWeight: 500 }}>From : </span>
                             <input
                                 type="date"
                                 value={dateRange.from || ""}
@@ -305,13 +356,13 @@ export default function EmployeeDashboard() {
                                 borderRadius: 8,
                                 border: "1px solid #d1d5db",
                                 fontSize: 14,
-                                color: "#111827",
+                                color: "#111827",      
                                 }}
                             />
                             </div>
 
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 20px" }}>
-                            <span style={{ fontWeight: 500 }}>To</span>
+                            <div style={{ display: "flex", flexDirection: "row", gap: 4, padding: "15px 20px" }}>
+                            <span style={{ fontWeight: 500 }}>To   :</span>
                             <input
                                 type="date"
                                 value={dateRange.to || ""}
@@ -325,22 +376,89 @@ export default function EmployeeDashboard() {
                                 }}
                             />
                             </div>
-
-                            <button>reset</button>
                         </div>
                         </div>
 
 
                     </div>
 
-                    <TicketFilters
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 7, flexDirection: 'row', gap: 8 }}>
+                    {/* <TicketFilters
                         value={filters}
                         onChange={setFilters}
                         clientOptions={clientOptions}
                         domainOptions={domainOptions}
                         priorityOptions={priorityOptions}
                         handlerOptions={handlerOptions}
-                        />
+                    /> */}
+                    <Select
+                    options={clientOptions} // { label, value }
+                    value={clientOptions.find(o => o.value === filters.client) || null}
+                    onChange={opt =>
+                        setFilters(prev => ({ ...prev, client: (opt?.value as string) || 'all' }))
+                    }
+                    isClearable
+                    isSearchable
+                    placeholder="Client"
+                    />
+                    <Select 
+                    options={domainOptions} // { label, value }
+                    value={domainOptions.find(o => o.value === filters.domain) || null}
+                    onChange={opt =>
+                        setFilters(prev => ({ ...prev, domain: (opt?.value as string) || 'all' }))
+                    }
+                    isClearable
+                    isSearchable
+                    placeholder="Domain"
+                    />
+                    <Select
+                    options={priorityOptions} // { label, value }
+                    value={priorityOptions.find(o => o.value === filters.priority) || null}
+                    onChange={opt =>
+                        setFilters(prev => ({ ...prev, priority: (opt?.value as string) || 'all' }))
+                    }
+                    isClearable
+                    isSearchable
+                    placeholder="Priority"
+                    />
+                    <Select
+                    options={handlerOptions} // { label, value }
+                    value={handlerOptions.find(o => o.value === filters.handler) || null}
+                    onChange={opt =>
+                        setFilters(prev => ({ ...prev, handler: (opt?.value as string) || 'all' }))
+                    }
+                    isClearable
+                    isSearchable
+                    placeholder="Handler"
+                    />
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <label style={{ fontSize: 14, color: '#4b5563' }}>Sort by:</label>
+                    <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value as SortOption)}
+                    style={{
+                        padding: '6px 10px',
+                        borderRadius: 8,
+                        border: '1px solid #d1d5db',
+                        fontSize: 14,
+                        color: '#111827',
+                    }}
+                    >
+                    <option value="created-desc">Newest first</option>
+                    <option value="created-asc">Oldest first</option>
+                    <option value="priority-desc">Priority high → low</option>
+                    <option value="priority-asc">Priority low → high</option>
+                    </select>
+                </div>
+                    <Button
+                        variant="default"
+                        onClick={() => setFilters(initialFilters)}
+                        style={{ marginLeft: '10px' }}
+                    >
+                        Reset filters
+                    </Button>
+                    </div>
+
 
                     {/* Tabs row */}
                     <div style={{
@@ -349,7 +467,7 @@ export default function EmployeeDashboard() {
                         background: "#f6f6f9",
                         padding: "6px",
                         gap: 6,
-                        marginBottom: 32
+                        marginBottom: 0
                     }}>
                         {TABS.map(tab => (
                             <button
@@ -379,31 +497,31 @@ export default function EmployeeDashboard() {
                         borderRadius: 17,
                         boxShadow: "0 2px 12px #e6e7f9",
                         overflow: "hidden",
-                        marginTop: 12
+                        marginTop: 12,
                     }}>
                         {loading ? (
                             <div style={{ textAlign: "center", padding: "2rem", color: "#888" }}>Loading...</div>
                         ) : (
-                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 17 }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 17}}>
                                 <thead>
                                     <tr style={{ height: "52px", background: "#fff" }}>
-                                        <th style={thStyle}>Ticket Code</th>
+                                        <th style={thStyle}>Ticket</th>
                                         <th style={thStyle}>Client</th>
-                                        <th style={thStyle}>Query</th>
-                                        <th style={thStyle}>Sub-query</th>
+                                        <th style={thStyle}>Domain</th>
+                                        {/* <th style={thStyle}>Subquery</th> */}
                                         <th style={thStyle}>Comment</th>
                                         <th style={thStyle}>Priority</th>
-                                        <th style={thStyle}>Post date</th>
+                                        <th style={thStyle}>Posted</th>
                                         {activeTab == 'accepted' && (
                                             <>
-                                            <th style={thStyle}>Accept date</th>
+                                            <th style={thStyle}>Accepted</th>
                                             </>
                                         )
                                         }
                                         {activeTab == 'resolved' && (
                                             <>
-                                            <th style={thStyle}>Accept date</th>
-                                            <th style={thStyle}>Resolve date</th>
+                                            <th style={thStyle}>Accepted</th>
+                                            <th style={thStyle}>Resolved</th>
                                             </>
                                         )
                                         }
@@ -418,7 +536,7 @@ export default function EmployeeDashboard() {
                                                 No tickets in this category
                                             </td>
                                         </tr>
-                                    ) : visibleTickets.map(ticket => (
+                                    ) : visibleTickets.slice(0, visibleCount).map(ticket => (
                                         <tr key={ticket._id} style={{
                                             borderBottom: "1px solid #f3f4f6",
                                             background: "#fff"
@@ -441,11 +559,10 @@ export default function EmployeeDashboard() {
                                             <td style={tdStyle}>{ticket.client?.name || "Unknown"}</td>
                                             <td style={tdStyle}>
                                                 <div style={{ fontWeight: 500 }}>{ticket.masterDomain}</div>
+                                                <div style={{ color: "#9494a4ff", fontWeight: 500 }}>{ticket.subDomain || '-'}</div>
                                             </td>
 
-                                            <td style={tdStyle}>
-                                                <div style={{ color: "#71717a", fontWeight: 500 }}>{ticket.subDomain || '-'}</div>
-                                            </td>
+                                            
                                             <td style={tdStyle}>
                                                 <div>{ticket.subject}</div>
                                             </td>
@@ -464,41 +581,48 @@ export default function EmployeeDashboard() {
                                             </td>
                                             <td style={tdStyle}>
                                                 <div style={{ color: "#71717a", fontWeight: 500 }}>
-                                                    {ticket.createdAt
+                                                {ticket.createdAt
                                                     ? (() => {
                                                         const d = new Date(ticket.createdAt);
-                                                        const dateStr = d.toLocaleDateString(undefined, {
-                                                            day: 'numeric',
-                                                            month: 'short',
-                                                            year: 'numeric',
-                                                        });
-                                                        const timeStr = d.toLocaleTimeString([], {
-                                                            hour: 'numeric',
-                                                            minute: '2-digit',
-                                                        });
-                                                        return `${dateStr} (${timeStr})`;
-                                                        })()
+
+                                                        const day = String(d.getDate()).padStart(2, '0');
+
+                                                        const monthShort = d
+                                                        .toLocaleString('en-US', { month: 'short' }) // e.g. "Dec"
+                                                        .toUpperCase(); // "DEC"
+
+                                                        const yearShort = String(d.getFullYear()).slice(-2); // "25"
+
+                                                        const hours = String(d.getHours()).padStart(2, '0');
+                                                        const minutes = String(d.getMinutes()).padStart(2, '0');
+
+                                                        return `${day}${monthShort}${yearShort} ${hours}:${minutes}`;
+                                                    })()
                                                     : '-'}
                                                 </div>
                                             </td>
+
                                             {activeTab == 'accepted' && (
                                             <>
                                             <td style={tdStyle}>
                                                 <div style={{ color: "#71717a", fontWeight: 500 }}>
-                                                    {ticket.acceptedAt
+                                                {ticket.acceptedAt
                                                     ? (() => {
                                                         const d = new Date(ticket.acceptedAt);
-                                                        const dateStr = d.toLocaleDateString(undefined, {
-                                                            day: 'numeric',
-                                                            month: 'short',
-                                                            year: 'numeric',
-                                                        });
-                                                        const timeStr = d.toLocaleTimeString([], {
-                                                            hour: 'numeric',
-                                                            minute: '2-digit',
-                                                        });
-                                                        return `${dateStr} (${timeStr})`;
-                                                        })()
+
+                                                        const day = String(d.getDate()).padStart(2, '0');
+
+                                                        const monthShort = d
+                                                        .toLocaleString('en-US', { month: 'short' }) // e.g. "Dec"
+                                                        .toUpperCase(); // "DEC"
+
+                                                        const yearShort = String(d.getFullYear()).slice(-2); // "25"
+
+                                                        const hours = String(d.getHours()).padStart(2, '0');
+                                                        const minutes = String(d.getMinutes()).padStart(2, '0');
+
+                                                        return `${day}${monthShort}${yearShort} ${hours}:${minutes}`;
+                                                    })()
                                                     : '-'}
                                                 </div>
                                             </td>
@@ -510,51 +634,64 @@ export default function EmployeeDashboard() {
                                             <>
                                             <td style={tdStyle}>
                                                 <div style={{ color: "#71717a", fontWeight: 500 }}>
-                                                    {ticket.acceptedAt
+                                                {ticket.acceptedAt
                                                     ? (() => {
                                                         const d = new Date(ticket.acceptedAt);
-                                                        const dateStr = d.toLocaleDateString(undefined, {
-                                                            day: 'numeric',
-                                                            month: 'short',
-                                                            year: 'numeric',
-                                                        });
-                                                        const timeStr = d.toLocaleTimeString([], {
-                                                            hour: 'numeric',
-                                                            minute: '2-digit',
-                                                        });
-                                                        return `${dateStr} (${timeStr})`;
-                                                        })()
+
+                                                        const day = String(d.getDate()).padStart(2, '0');
+
+                                                        const monthShort = d
+                                                        .toLocaleString('en-US', { month: 'short' }) // e.g. "Dec"
+                                                        .toUpperCase(); // "DEC"
+
+                                                        const yearShort = String(d.getFullYear()).slice(-2); // "25"
+
+                                                        const hours = String(d.getHours()).padStart(2, '0');
+                                                        const minutes = String(d.getMinutes()).padStart(2, '0');
+
+                                                        return `${day}${monthShort}${yearShort} ${hours}:${minutes}`;
+                                                    })()
                                                     : '-'}
                                                 </div>
+
                                             </td>
                                             <td style={tdStyle}>
                                                 <div style={{ color: "#71717a", fontWeight: 500 }}>
-                                                    {ticket.resolvedAt
+                                                {ticket.resolvedAt
                                                     ? (() => {
                                                         const d = new Date(ticket.resolvedAt);
-                                                        const dateStr = d.toLocaleDateString(undefined, {
-                                                            day: 'numeric',
-                                                            month: 'short',
-                                                            year: 'numeric',
-                                                        });
-                                                        const timeStr = d.toLocaleTimeString([], {
-                                                            hour: 'numeric',
-                                                            minute: '2-digit',
-                                                        });
-                                                        return `${dateStr} (${timeStr})`;
-                                                        })()
+
+                                                        const day = String(d.getDate()).padStart(2, '0');
+
+                                                        const monthShort = d
+                                                        .toLocaleString('en-US', { month: 'short' }) // e.g. "Dec"
+                                                        .toUpperCase(); // "DEC"
+
+                                                        const yearShort = String(d.getFullYear()).slice(-2); // "25"
+
+                                                        const hours = String(d.getHours()).padStart(2, '0');
+                                                        const minutes = String(d.getMinutes()).padStart(2, '0');
+
+                                                        return `${day}${monthShort}${yearShort} ${hours}:${minutes}`;
+                                                    })()
                                                     : '-'}
                                                 </div>
+
                                             </td>
                                             </>
                                         )
                                         }
 
                                             <td style={tdStyle}>
-                                                <span style={{ color: "#a1a1aa" }}>
-                                                    {typeof ticket.acceptedBy === 'string' ? ticket.acceptedBy : ticket.acceptedBy?.name || "Unassigned"}
-                                                </span>
+                                            <span style={{ color: "#a1a1aa" }}>
+                                                {typeof ticket.acceptedBy === 'string'
+                                                ? ticket.acceptedBy
+                                                : ticket.acceptedBy?.name
+                                                    || ("Not-suggested")}
+                                            </span>
                                             </td>
+
+
                                             <td style={{ ...tdStyle, minWidth: 170 }}>
                                                 {activeTab === 'open' && (
                                                     <Button
@@ -624,6 +761,18 @@ export default function EmployeeDashboard() {
                                 </tbody>
                             </table>
                         )}
+                        {/* Load more button */}
+                        {visibleTickets.length > visibleCount && (
+                        <div style={{ padding: '12px 16px', textAlign: 'center' }}>
+                            <Button
+                            variant="default"
+                            onClick={() => setVisibleCount(c => c + 2)}
+                            >
+                            Load more
+                            </Button>
+                        </div>
+                        )}
+
                     </div>
 
                     {etaModalOpen && (

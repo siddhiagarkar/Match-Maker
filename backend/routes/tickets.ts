@@ -265,48 +265,49 @@ router.get('/my', auth, async (req: any, res: any) => {
     res.json(tickets);
 });
 
-//Generate suggestions for who should accept the ticket based on past interaction
 router.get('/suggestions', auth, async (req: any, res: any) => {
-    if (req.user.role !== 'agent') {
-        return res.status(403).json({ error: "Only agents have access to this" });
+  if (req.user.role !== 'agent') {
+    return res.status(403).json({ error: "Only agents have access to this" });
+  }
+
+  const openTickets = await Ticket.find({ status: 'open' }).lean();
+  const ticketSuggestions: Record<string, { _id: string; name: string }[]> = {};
+
+  for (const ticket of openTickets) {
+    const pastTickets = await Ticket.find({
+      client: ticket.client,
+      _id: { $ne: ticket._id },
+      acceptedBy: { $exists: true, $ne: null }
+    }).lean();
+
+    const agentFreq: Record<string, number> = {};
+
+    for (const t of pastTickets) {
+      const agentId = t.acceptedBy?.toString();
+      if (agentId) {
+        agentFreq[agentId] = (agentFreq[agentId] || 0) + 1;
+      }
     }
 
-    const openTickets = await Ticket.find({ status: 'open' }).lean();
-    const ticketSuggestions = new Array;
+    const topAgents = Object.entries(agentFreq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2)
+      .map(([agentId]) => agentId);
 
-    for (const ticket of openTickets) {
-        const pastTickets = await Ticket.find({
-            client: ticket.client,
-            _id: { $ne: ticket._id },
-            acceptedBy: { $exists: true, $ne: null }
-        }).lean();
+    const agentsWithNames = topAgents.length
+      ? await User.find({ _id: { $in: topAgents } }).select('name').lean()
+      : [];
 
-        const agentFreq = new Array;
-        for (const t of pastTickets) {
-            const agentId = t.acceptedBy?.toString();
-            if (agentId) {
-                agentFreq[agentId] = (agentFreq[agentId] || 0) + 1;
-            }
-        }
+    ticketSuggestions[ticket._id.toString()] = agentsWithNames.map(
+      (agent: { _id: any; name: any }) => ({
+        _id: agent._id.toString(),
+        name: agent.name
+      })
+    );
+  }
 
-        const topAgents = Object.entries(agentFreq)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 2)
-            .map(([agentId]) => agentId);
-
-        const agentsWithNames = topAgents.length
-            ? await User.find({ _id: { $in: topAgents } }).select('name').lean()
-            : [];
-
-        ticketSuggestions[ticket._id] = agentsWithNames.map((agent: { _id: any; name: any; }) => ({
-            _id: agent._id,
-            name: agent.name
-        }));
-    }
-
-    res.json(ticketSuggestions);
+  res.json(ticketSuggestions);
 });
-
 
 // GET /tickets/:id - get full ticket details
 router.get('/:id', auth, async (req: any, res: any) => {

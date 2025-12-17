@@ -11,6 +11,7 @@ import TicketPostForm from './pages/TicketPostForm';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import RequireAuth from './components/RequireAuth';
 import TicketInfo from './pages/TicketInfo';
+import AdminDashboard from './pages/AdminDashboard';
 
 
 function PrivateRoute({ children }: { children: JSX.Element }): JSX.Element {
@@ -66,8 +67,9 @@ function App() {
                     } />
                     <Route path="/register" element={<Register />} />
 
-                    {/* all the following routes will require authentication */}
+                    
                     <Route element={<RequireAuth />}>
+                    {/* all the following routes will require authentication */}
                             <Route path="/chat" element={
                                 <PrivateRoute>
                                     <Chat />
@@ -77,6 +79,9 @@ function App() {
                             <Route path="/tickets/new" element={<TicketPostForm />} />
                             <Route path="/employee/dashboard" element={
                                 <EmployeeDashboard />
+                            } />
+                            <Route path="/admin/dashboard" element={
+                                <AdminDashboard />
                             } />
 
                             <Route path="/tickets/:ticketId" element={<TicketInfo />} />

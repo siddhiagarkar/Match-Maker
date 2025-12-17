@@ -4,7 +4,7 @@ import API from '../api';
 import { io, Socket } from 'socket.io-client';
 import { AuthContext } from '../context/AuthContext';
 import type { User } from '../types/User';
-import { useNavigate } from 'react-router-dom';
+import { redirect, useNavigate } from 'react-router-dom';
 
 import { ChatLayout, ChatShell } from '../components/ChatLayout';
 import { ChatHeader } from '../components/ChatHeader';

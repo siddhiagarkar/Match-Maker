@@ -12,9 +12,10 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, icon, bgColor = "#fff
         background: bgColor,
         borderRadius: 18,
         padding: "26px 20px",
-        minWidth: 170,
+        minWidth: "10%",
         boxShadow: "0 2px 8px #f7f7fa",
-        border: "1.5px solid #ececec"
+        border: "1.5px solid #ececec",
+        height: "50%",
     }}>
         <div style={{ fontSize: 19, fontWeight: 500, color: "#36373A", marginBottom: 3 }}>{title}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 3 }}>

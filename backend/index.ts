@@ -34,12 +34,12 @@ app.get('/', (req: any, res: any) => {
 
 // Plug in routes
 app.use('/api/auth', require('./routes/authentication'));
-app.use('/api/agent-availability', auth, require('./routes/agentAvailability'));
-app.use('/api/appointments', auth, require('./routes/appointments'));
+// app.use('/api/agent-availability', auth, require('./routes/agentAvailability'));
+// app.use('/api/appointments', auth, require('./routes/appointments'));
 app.use('/api/conversations', auth, require('./routes/conversationHistory'));
 app.use('/api/messages', auth, require('./routes/messages'));
 app.use('/api/profile', auth, require('./routes/profile'));
-app.use('/api/match', auth, require('./routes/agentMatching'));
+// app.use('/api/match', auth, require('./routes/agentMatching'));
 app.use('/api/tickets', auth, require('./routes/tickets'));
 
 app.get('/api/protected', auth, (req: any, res: any) => {

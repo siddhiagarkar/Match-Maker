@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
+import StatCard from '../components/StatCard';
 
 type Ticket = {
   _id: string;
@@ -21,6 +22,15 @@ type Ticket = {
   estimatedResolutionAt?: string;
 };
 
+type Stats = {
+  total: number;
+  open: number;
+  accepted: number;
+  resolved: number;
+};
+
+type SuggestedAgent = { _id: string; name: string };
+
 export default function TicketDetailsPage() {
   const { ticketId } = useParams<{ ticketId: string }>();
   const [ticket, setTicket] = useState<Ticket | null>(null);
@@ -29,6 +39,32 @@ export default function TicketDetailsPage() {
 
   const user = useContext(AuthContext);
   const navigate = useNavigate();
+
+  const [stats, setStats] = useState<Stats>({ total: 0, open: 0, accepted: 0, resolved: 0 });
+
+  const [suggestedAgents, setSuggestedAgents] = useState<SuggestedAgent[] | null>(null);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+
+  const fetchStats = async () => {
+    try {
+      const params: Record<string, string> = {};
+      const response = await API.get('/tickets/dashboard-all', { params });
+      const allTickets = response.data as Ticket[];
+
+      setStats({
+        total: allTickets.length,
+        open: allTickets.filter(t => t.status === 'open').length,
+        accepted: allTickets.filter(t => t.status === 'accepted').length,
+        resolved: allTickets.filter(t => t.status === 'resolved').length,
+      });
+    } catch {
+      setStats({ total: 0, open: 0, accepted: 0, resolved: 0 });
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
   useEffect(() => {
     const fetchTicket = async () => {
@@ -42,6 +78,22 @@ export default function TicketDetailsPage() {
       }
     };
     if (ticketId) fetchTicket();
+  }, [ticketId]);
+
+  // Fetch suggestions for this single ticket
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!ticketId) return;
+      try {
+        const res = await API.get(`/tickets/suggestions/${ticketId}`);
+        setSuggestedAgents(res.data as SuggestedAgent[]);
+        setSuggestionsError(null);
+      } catch (e: any) {
+        setSuggestedAgents(null);
+        setSuggestionsError(e.response?.data?.error || 'Failed to load suggestions');
+      }
+    };
+    fetchSuggestions();
   }, [ticketId]);
 
   const formatDateTime = (value?: string) => {
@@ -59,6 +111,16 @@ export default function TicketDetailsPage() {
     return `${dateStr} at ${timeStr}`;
   };
 
+  const formatDate = (value?: string) => {
+    if (!value) return '-';
+    const d = new Date(value);
+    return d.toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
   const diffMinutes = (from?: string, to?: string) => {
     if (!from || !to) return null;
     const start = new Date(from).getTime();
@@ -67,14 +129,37 @@ export default function TicketDetailsPage() {
     return Math.round(diffMs / (1000 * 60));
   };
 
+  // Convert minutes → human-readable (days/hours/minutes)
+  const formatDuration = (minutes: number | null) => {
+    if (minutes == null) return '-';
+    if (minutes === 0) return '0 minutes';
+
+    const days = Math.floor(minutes / (60 * 24));
+    const hours = Math.floor((minutes % (60 * 24)) / 60);
+    const mins = minutes % 60;
+
+    const parts: string[] = [];
+    if (days > 0) parts.push(days === 1 ? '1 day' : `${days} days`);
+    if (hours > 0) parts.push(hours === 1 ? '1 hour' : `${hours} hours`);
+    if (mins > 0) parts.push(mins === 1 ? '1 minute' : `${mins} minutes`);
+
+    return parts.join(' ');
+  };
+
   // Metrics
   const estimatedMinutes = diffMinutes(ticket?.acceptedAt, ticket?.estimatedResolutionAt);
   const actualMinutes = diffMinutes(ticket?.acceptedAt, ticket?.resolvedAt);
 
   let performanceLabel = 'N/A';
+  let performanceColor = '#6b7280';
   if (estimatedMinutes != null && actualMinutes != null) {
-    if (actualMinutes <= estimatedMinutes) performanceLabel = 'On time or faster';
-    else performanceLabel = 'Delayed';
+    if (actualMinutes <= estimatedMinutes) {
+      performanceLabel = 'On time or faster';
+      performanceColor = '#10b981';
+    } else {
+      performanceLabel = 'Delayed';
+      performanceColor = '#dc2626';
+    }
   }
 
   const userInitials =
@@ -123,21 +208,45 @@ export default function TicketDetailsPage() {
     );
   }
 
-  const priorityPillStyle = () => {
+  const priorityColor = () => {
     switch (ticket.priority) {
       case 'urgent':
-        return { bg: '#fee2e2', color: '#b91c1c' };
+        return '#dc2626';
       case 'high':
-        return { bg: '#ffedd5', color: '#c2410c' };
+        return '#ea580c';
       case 'medium':
-        return { bg: '#dbeafe', color: '#1d4ed8' };
+        return '#2563eb';
       case 'low':
       default:
-        return { bg: '#f3f4f6', color: '#374151' };
+        return '#4b5563';
     }
   };
 
-  const priorityStyle = priorityPillStyle();
+  const suggestedName =
+    suggestedAgents && suggestedAgents.length > 0
+      ? suggestedAgents[0].name
+      : 'Not-suggested';
+
+  // Actions: accept / resolve
+  const handleAccept = async () => {
+    if (!ticket) return;
+    try {
+      const res = await API.post(`/tickets/${ticket._id}/accept`);
+      setTicket(res.data);
+    } catch (e) {
+      // optionally toast
+    }
+  };
+
+  const handleResolve = async () => {
+    if (!ticket) return;
+    try {
+      const res = await API.post(`/tickets/${ticket._id}/resolve`);
+      setTicket(res.data);
+    } catch (e) {
+      // optionally toast
+    }
+  };
 
   return (
     <>
@@ -170,188 +279,394 @@ export default function TicketDetailsPage() {
             ← Back to Dashboard
           </button>
 
-          {/* Header card */}
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 18,
-              padding: '18px 20px',
-              boxShadow: '0 2px 10px rgba(15,23,42,0.04)',
-              marginBottom: 18,
-            }}
-          >
-            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 10 }}>
-                {ticket.code}
-            </div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', fontSize: 13 }}>
-              <span
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 999,
-                  background: '#eef2ff',
-                  color: '#4f46e5',
-                  fontWeight: 600,
-                }}
-              >
-                {ticket.status.toUpperCase()}
-              </span>
-              <span
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 999,
-                  background: priorityStyle.bg,
-                  color: priorityStyle.color,
-                  fontWeight: 600,
-                }}
-              >
-                {ticket.priority.toUpperCase()} PRIORITY
-              </span>
-              <span style={{ color: '#9ca3af' }}>
-                Created {formatDateTime(ticket.createdAt)}
-              </span>
-            </div>
+          {/* Header stats */}
+          <div style={{ display: 'flex', gap: 32, marginBottom: 10 }}>
+            <StatCard title="Open" count={stats.open} bgColor="#E0E8F9" icon={undefined} />
+            <StatCard title="Accepted" count={stats.accepted} bgColor="#FEF9E0" icon={undefined} />
+            <StatCard title="Resolved" count={stats.resolved} bgColor="#D1FADF" icon={undefined} />
+            <StatCard title="Online Agents" count={0} bgColor="#fbeedfff" icon={undefined} />
           </div>
 
-          {/* Main layout: 2 columns */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)',
-              gap: 18,
-            }}
-          >
-            {/* LEFT COLUMN */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-
-                {/* Domain */}
+          {/* Main layout */}
+          <div style={{ marginTop: 30 }}>
+            {/* Main card with all ticket details */}
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: 12,
+                padding: '28px 32px',
+                boxShadow: '0 2px 10px rgba(15,23,42,0.04)',
+              }}
+            >
+              {/* Header section */}
               <div
                 style={{
-                  background: '#fff',
-                  borderRadius: 18,
-                  padding: '16px 18px',
-                  boxShadow: '0 2px 10px rgba(15,23,42,0.04)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: 24,
+                  gap: 16,
                 }}
               >
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 10 }}>
-                  Domains
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 32, fontWeight: 600, marginBottom: 8 }}>
+                    {ticket.code}
+                  </div>
+
+                  {/* Performance Metrics below ticket ID */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 32,
+                      marginBottom: 16,
+                      paddingTop: 8,
+                      borderTop: '1px solid #e5e7eb',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 4 }}>
+                        Estimated resolution
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: '#111827' }}>
+                        {formatDuration(estimatedMinutes)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 4 }}>
+                        Actual resolution
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: '#111827' }}>
+                        {formatDuration(actualMinutes)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 4 }}>
+                        Performance
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: performanceColor }}>
+                        {performanceLabel}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status and priority badges */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div
+                      style={{
+                        padding: '6px 16px',
+                        borderRadius: 999,
+                        background: '#eef2ff',
+                        color: '#4f46e5',
+                        fontWeight: 600,
+                        fontSize: 14,
+                      }}
+                    >
+                      {ticket.status.toUpperCase()}
+                    </div>
+                    <div
+                      style={{
+                        padding: '6px 16px',
+                        borderRadius: 999,
+                        background: '#fef2f2',
+                        color: priorityColor(),
+                        fontWeight: 600,
+                        fontSize: 14,
+                      }}
+                    >
+                      {ticket.priority.toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 14, color: '#6b7280', marginLeft: 8 }}>
+                      Created {formatDate(ticket.createdAt)}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 15, color: '#374151' }}>
-                  {ticket.masterDomain || 'No master domain provided.'}
-                </div>
-                <div style={{ fontSize: 15, color: '#374151' }}>
-                  {ticket.subDomain || 'No sub domain provided.'}
+
+                {/* Right-side action buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {ticket.status === 'open' && (
+                    <button
+                      onClick={handleAccept}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 999,
+                        border: 'none',
+                        background: '#2563eb',
+                        color: '#fff',
+                        fontWeight: 600,
+                        fontSize: 14,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Accept Ticket
+                    </button>
+                  )}
+                  {ticket.status === 'accepted' && (
+                    <button
+                      onClick={handleResolve}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 999,
+                        border: 'none',
+                        background: '#16a34a',
+                        color: '#fff',
+                        fontWeight: 600,
+                        fontSize: 14,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Resolve Ticket
+                    </button>
+                  )}
                 </div>
               </div>
 
+              {/* Two-column layout for details */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 40 }}>
+                {/* Left column */}
+                <div>
+                  {/* Client and Handler Info */}
+                  <div style={{ marginBottom: 32 }}>
+                    <div
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 600,
+                        marginBottom: 16,
+                        color: '#111827',
+                      }}
+                    >
+                      Details
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                      <div>
+                        <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 8 }}>
+                          Client
+                        </div>
+                        <div
+                          style={{ fontSize: 16, fontWeight: 500, color: '#111827' }}
+                        >
+                          {ticket.client.name}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 8 }}>
+                          Handler
+                        </div>
+                        <div
+                          style={{ fontSize: 16, fontWeight: 500, color: '#111827' }}
+                        >
+                          {ticket.acceptedBy ? ticket.acceptedBy.name : 'Unassigned'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Subject */}
-              <div
-                style={{
-                  background: '#fff',
-                  borderRadius: 18,
-                  padding: '16px 18px',
-                  boxShadow: '0 2px 10px rgba(15,23,42,0.04)',
-                }}
-              >
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 10 }}>
-                  Subject
-                </div>
-                <div style={{ fontSize: 15, color: '#374151' }}>
-                  {ticket.subject || 'No subject provided.'}
-                </div>
-              </div>
+                  {/* Domain section */}
+                  <div style={{ marginBottom: 32 }}>
+                    <div
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 600,
+                        marginBottom: 16,
+                        color: '#111827',
+                      }}
+                    >
+                      Domain
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                      <div>
+                        <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 8 }}>
+                          Domain
+                        </div>
+                        <div
+                          style={{ fontSize: 16, fontWeight: 500, color: '#111827' }}
+                        >
+                          {ticket.masterDomain || 'No domain provided.'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 8 }}>
+                          Subject
+                        </div>
+                        <div
+                          style={{ fontSize: 16, fontWeight: 500, color: '#111827' }}
+                        >
+                          {ticket.subject || 'No subject provided.'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Additional comments */}
-              <div
-                style={{
-                  background: '#fff',
-                  borderRadius: 18,
-                  padding: '16px 18px',
-                  boxShadow: '0 2px 10px rgba(15,23,42,0.04)',
-                }}
-              >
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 10 }}>
-                  Additional Comments
-                </div>
-                <div style={{ fontSize: 15, color: '#374151', whiteSpace: 'pre-wrap' }}>
-                  {ticket.additional_comment || 'No additional comments.'}
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT COLUMN */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {/* People */}
-              <div
-                style={{
-                  background: '#fff',
-                  borderRadius: 18,
-                  padding: '16px 18px',
-                  boxShadow: '0 2px 10px rgba(15,23,42,0.04)',
-                }}
-              >
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>People</div>
-
-                <div style={{ fontSize: 14, marginBottom: 8 }}>
-                  <strong>Client:</strong> {ticket.client.name}
-                </div>
-
-                <div style={{ fontSize: 14, marginBottom: 8 }}>
-                  <strong>Accepted By:</strong>{' '}
-                  {ticket.acceptedBy ? ticket.acceptedBy.name : '-'}
-                </div>
-              </div>
-
-              {/* Timings */}
-              <div
-                style={{
-                  background: '#fff',
-                  borderRadius: 18,
-                  padding: '16px 18px',
-                  boxShadow: '0 2px 10px rgba(15,23,42,0.04)',
-                }}
-              >
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Timestamps</div>
-
-                <div style={{ fontSize: 14, marginBottom: 8 }}>
-                  <strong>Posted:</strong> {ticket.createdAt ? formatDateTime(ticket.createdAt) : '-'}
-                </div>
-                <div style={{ fontSize: 14, marginBottom: 8 }}>
-                  <strong>Accepted:</strong> {ticket.acceptedAt ? formatDateTime(ticket.acceptedAt) : '-'}
-                </div>
-                <div style={{ fontSize: 14, marginBottom: 8 }}>
-                  <strong>Resolved:</strong> {ticket.resolvedAt ? formatDateTime(ticket.resolvedAt) : '-'}
-                </div>
-
-                {/* <div style={{ fontSize: 14, marginBottom: 8 }}>
-                  <strong>Accepted By:</strong>{' '}
-                  {ticket.acceptedBy ? ticket.acceptedBy.name : '-'}
-                </div> */}
-              </div>
-
-              {/* Metrics */}
-              <div
-                style={{
-                  background: '#fff',
-                  borderRadius: 18,
-                  padding: '16px 18px',
-                  boxShadow: '0 2px 10px rgba(15,23,42,0.04)',
-                }}
-              >
-                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Metrics</div>
-
-                <div style={{ fontSize: 14, marginBottom: 8 }}>
-                  <strong>Estimated Resolution Time:</strong>{' '}
-                  {estimatedMinutes != null ? `${estimatedMinutes} minutes` : '-'}
-                </div>
-
-                <div style={{ fontSize: 14, marginBottom: 8 }}>
-                  <strong>Actual Resolution Time:</strong>{' '}
-                  {actualMinutes != null ? `${actualMinutes} minutes` : '-'}
+                  {/* Additional details */}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 600,
+                        marginBottom: 16,
+                        color: '#111827',
+                      }}
+                    >
+                      Description
+                    </div>
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 16,
+                          color: '#374151',
+                          lineHeight: 1.6,
+                          padding: 16,
+                          background: '#f9fafb',
+                          borderRadius: 8,
+                        }}
+                      >
+                        {ticket.additional_comment || 'No description provided.'}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div style={{ fontSize: 14 }}>
-                  <strong>Performance:</strong> {performanceLabel}
+                {/* Right column - Timeline section */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 600,
+                      marginBottom: 16,
+                      color: '#111827',
+                    }}
+                  >
+                    Timeline
+                  </div>
+                  <div style={{ position: 'relative', paddingLeft: 20 }}>
+                    {/* Timeline line */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: 6,
+                        top: 0,
+                        bottom: 0,
+                        width: 2,
+                        background: '#e5e7eb',
+                      }}
+                    ></div>
+
+                    {/* Timeline items */}
+                    <div style={{ marginBottom: 32, position: 'relative' }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: -20,
+                          top: 4,
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          background: '#10b981',
+                          border: '2px solid #fff',
+                          zIndex: 1,
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: '#111827',
+                          marginBottom: 4,
+                        }}
+                      >
+                        Created
+                      </div>
+                      <div style={{ fontSize: 14, color: '#6b7280' }}>
+                        {formatDateTime(ticket.createdAt)}
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: 32, position: 'relative' }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: -20,
+                          top: 4,
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          background: ticket.acceptedAt ? '#3b82f6' : '#d1d5db',
+                          border: '2px solid #fff',
+                          zIndex: 1,
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: '#111827',
+                          marginBottom: 4,
+                        }}
+                      >
+                        Accepted
+                      </div>
+                      <div style={{ fontSize: 14, color: '#6b7280' }}>
+                        {ticket.acceptedAt
+                          ? formatDateTime(ticket.acceptedAt)
+                          : 'Not accepted yet'}
+                      </div>
+                    </div>
+
+                    <div style={{ position: 'relative' }}>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: -20,
+                          top: 4,
+                          width: 12,
+                          height: 12,
+                          borderRadius: '50%',
+                          background: ticket.resolvedAt ? '#8b5cf6' : '#d1d5db',
+                          border: '2px solid #fff',
+                          zIndex: 1,
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: '#111827',
+                          marginBottom: 4,
+                        }}
+                      >
+                        Resolved
+                      </div>
+                      <div style={{ fontSize: 14, color: '#6b7280' }}>
+                        {ticket.resolvedAt
+                          ? formatDateTime(ticket.resolvedAt)
+                          : 'Not resolved yet'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Suggested Handler */}
+                  <div
+                    style={{
+                      marginTop: 40,
+                      padding: 20,
+                      background: '#fef3c7',
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 600,
+                        marginBottom: 8,
+                        color: '#92400e',
+                      }}
+                    >
+                      Suggested Handler
+                    </div>
+                    <div style={{ fontSize: 14, color: '#92400e' }}>
+                      {suggestionsError ? 'Not-suggested' : suggestedName}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

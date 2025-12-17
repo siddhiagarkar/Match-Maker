@@ -21,7 +21,9 @@ export default function Login({ setUser }: { setUser: (u: User) => void }) {
             setUser(userObj); // Updates the AuthContext
             localStorage.setItem('user', JSON.stringify(userObj)); // Persists for reloads
             console.log("Redirecting to chat page");
-            if (role === 'agent' || role === 'admin')
+            if(role === 'admin')
+            navigate("/admin/dashboard");
+            else if (role === 'agent')
             navigate("/chat");
             else
             navigate("/tickets/new");
