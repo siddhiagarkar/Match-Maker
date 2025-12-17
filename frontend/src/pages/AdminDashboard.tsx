@@ -340,22 +340,28 @@ export default function AdminDashboard() {
                           navigate('/chat')} 
                           title={user?.role === 'agent' ? 'CHAT' : 'xyz'}
                           /> */}
+                    
 
                     {/* Stat cards row */}
+
+                    
                     <div style={{ display: "flex", gap: 32, marginBottom: 0 }}>
                         {/* <StatCard
                             title="Total Tickets"
                             count={stats.total}
-                            bgColor="#F9FAFB" icon={undefined}                        /> */}
+                            bgColor="#F9FAFB" icon={undefined}                        } */}
                         <StatCard
+                            onClick={() => setActiveTab('open')}
                             title="Open"
                             count={stats.org_open}
                             bgColor="#E0E8F9" icon={undefined}                        />
                         <StatCard
+                            onClick={() => setActiveTab('accepted')}
                             title="Accepted"
-                            count={stats.accepted}
+                            count={stats.org_accepted}
                             bgColor="#FEF9E0" icon={undefined}                        />
                         <StatCard
+                            onClick={() => setActiveTab('resolved')}
                             title="Resolved"
                             count={stats.org_resolved}
                             bgColor="#D1FADF" icon={undefined}                        />
