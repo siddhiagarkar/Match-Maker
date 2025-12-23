@@ -270,44 +270,85 @@ router.get('/suggestions', auth, async (req: any, res: any) => {
     return res.status(403).json({ error: "Only agents have access to this" });
   }
 
-  const openTickets = await Ticket.find({ status: 'open' }).lean();
-  const ticketSuggestions: Record<string, { _id: string; name: string }[]> = {};
+  try {
+    // Get open tickets with client populated for efficiency
+    const openTickets = await Ticket.find({ status: 'open' })
+      .populate('client', '_id')
+      .lean();
 
-  for (const ticket of openTickets) {
-    const pastTickets = await Ticket.find({
-      client: ticket.client,
-      _id: { $ne: ticket._id },
+    const ticketSuggestions: Record<string, { _id: string; name: string }[]> = {};
+
+    // Pre-fetch all past accepted tickets once for better performance
+    const allPastTickets = await Ticket.find({
+      status: { $ne: 'open' }, // Exclude open tickets
       acceptedBy: { $exists: true, $ne: null }
     }).lean();
 
-    const agentFreq: Record<string, number> = {};
-
-    for (const t of pastTickets) {
-      const agentId = t.acceptedBy?.toString();
+    // Build agent frequency map across all past tickets
+    const globalAgentFreq: Record<string, number> = {};
+    for (const ticket of allPastTickets) {
+      const agentId = ticket.acceptedBy?.toString();
       if (agentId) {
-        agentFreq[agentId] = (agentFreq[agentId] || 0) + 1;
+        globalAgentFreq[agentId] = (globalAgentFreq[agentId] || 0) + 1;
       }
     }
 
-    const topAgents = Object.entries(agentFreq)
+    // Get top agents globally (most experienced overall)
+    const topGlobalAgents = Object.entries(globalAgentFreq)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 2)
+      .slice(0, 5)
       .map(([agentId]) => agentId);
 
-    const agentsWithNames = topAgents.length
-      ? await User.find({ _id: { $in: topAgents } }).select('name').lean()
-      : [];
+    // Fetch agent names once
+    const agentsWithNames = await User.find({ 
+      _id: { $in: topGlobalAgents } 
+    }).select('name').lean();
 
-    ticketSuggestions[ticket._id.toString()] = agentsWithNames.map(
-      (agent: { _id: any; name: any }) => ({
-        _id: agent._id.toString(),
-        name: agent.name
-      })
-    );
+    const agentMap = agentsWithNames.reduce((map: any, agent: any) => {
+      map[agent._id.toString()] = agent.name;
+      return map;
+    }, {} as Record<string, string>);
+
+    // For each open ticket, suggest top 2 agents
+    for (const ticket of openTickets) {
+      // Client-specific frequency
+      const clientPastTickets = allPastTickets.filter((t: { client: { toString: () => any; }; }) => 
+        t.client?.toString() === ticket.client?._id?.toString()
+      );
+
+      const clientAgentFreq: Record<string, number> = {};
+      for (const t of clientPastTickets) {
+        const agentId = t.acceptedBy?.toString();
+        if (agentId) {
+          clientAgentFreq[agentId] = (clientAgentFreq[agentId] || 0) + 1;
+        }
+      }
+
+      // Prioritize client-specific top agents, fallback to global top
+      const clientTopAgents = Object.entries(clientAgentFreq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([agentId]) => agentId);
+
+      const finalSuggestions = clientTopAgents.length 
+        ? clientTopAgents.slice(0, 2)
+        : topGlobalAgents.slice(0, 2);
+
+      ticketSuggestions[ticket._id.toString()] = finalSuggestions
+        .map(agentId => ({
+          _id: agentId,
+          name: agentMap[agentId] || 'Unknown Agent'
+        }))
+        .filter(s => s.name !== 'Unknown Agent');
+    }
+
+    res.json(ticketSuggestions);
+  } catch (error) {
+    console.error('Suggestions error:', error);
+    res.status(500).json({ error: 'Failed to generate suggestions' });
   }
-
-  res.json(ticketSuggestions);
 });
+
 
 // GET /tickets/:id - get full ticket details
 router.get('/:id', auth, async (req: any, res: any) => {
