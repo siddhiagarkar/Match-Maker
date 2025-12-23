@@ -4,6 +4,7 @@ import API from '../api';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
 import StatCard from '../components/StatCard';
+import  Button  from '../components/Button';
 
 type Ticket = {
   _id: string;
@@ -44,6 +45,11 @@ export default function TicketDetailsPage() {
 
   const [suggestedAgents, setSuggestedAgents] = useState<SuggestedAgent[] | null>(null);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+
+  const [etaModalOpen, setEtaModalOpen] = useState(false);
+const [pendingTicketId, setPendingTicketId] = useState<string | null>(null);
+const [estimatedDate, setEstimatedDate] = useState('');
+
 
   const fetchStats = async () => {
     try {
@@ -228,15 +234,29 @@ export default function TicketDetailsPage() {
       : 'Not-suggested';
 
   // Actions: accept / resolve
-  const handleAccept = async () => {
-    if (!ticket) return;
-    try {
-      const res = await API.post(`/tickets/${ticket._id}/accept`);
-      setTicket(res.data);
-    } catch (e) {
-      // optionally toast
-    }
-  };
+  const handleAccept = () => {
+  if (!ticket) return;
+  setPendingTicketId(ticket._id);  // Open ETA modal first
+  setEtaModalOpen(true);
+};
+
+const handleConfirmAccept = async () => {
+  if (!pendingTicketId || !estimatedDate) return;
+  
+  try {
+    const res = await API.post(`/tickets/${pendingTicketId}/accept`, {
+      estimatedResolutionAt: new Date(estimatedDate).toISOString()
+    });
+    setTicket(res.data);
+    setEtaModalOpen(false);
+    setPendingTicketId(null);
+    setEstimatedDate('');
+  } catch (e) {
+    console.error('Accept failed:', e);
+  }
+};
+
+
 
   const handleResolve = async () => {
     if (!ticket) return;
@@ -672,6 +692,70 @@ export default function TicketDetailsPage() {
             </div>
           </div>
         </div>
+        {etaModalOpen && (
+  <div
+    style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(15,23,42,0.45)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 50,
+    }}
+  >
+    <div
+      style={{
+        background: '#fff',
+        borderRadius: 16,
+        padding: '20px 24px',
+        minWidth: 320,
+        boxShadow: '0 10px 40px rgba(15,23,42,0.18)',
+      }}
+    >
+      <h3 style={{ marginBottom: 8, fontSize: 18, fontWeight: 600 }}>
+        Estimated completion time
+      </h3>
+      <p style={{ marginBottom: 14, fontSize: 14, color: '#6b7280' }}>
+        By when do you expect to resolve this ticket?
+      </p>
+      <input
+        type="datetime-local"
+        value={estimatedDate}
+        onChange={e => setEstimatedDate(e.target.value)}
+        min={new Date().toISOString().slice(0, 16)}  // No past dates
+        style={{
+          width: '100%',
+          padding: '8px 10px',
+          borderRadius: 10,
+          border: '1px solid #e5e7eb',
+          marginBottom: 16,
+          fontSize: 14,
+        }}
+      />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <Button
+          variant="default"
+          onClick={() => {
+            setEtaModalOpen(false);
+            setPendingTicketId(null);
+            setEstimatedDate('');
+          }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          variant="primary" 
+          onClick={handleConfirmAccept}
+          disabled={!estimatedDate}
+        >
+          Confirm & Accept
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+
       </div>
     </>
   );
