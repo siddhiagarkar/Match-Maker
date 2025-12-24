@@ -75,13 +75,118 @@ export default function AdminDashboard() {
     const columnsToExport = [
     { key: 'code', label: 'Ticket ID' },
     { key: 'client.name', label: 'Client' },
+    { key: 'acceptedBy.name', label: 'Accepted By' },
+    { key: 'masterDomain', label: 'Domain' },
+    { key: 'subDomain', label: 'Subdomain' },
     { key: 'subject', label: 'Subject' },
     { key: 'priority', label: 'Priority' },
     { key: 'status', label: 'Status' },
     { key: 'createdAt', label: 'Created Date' },
-    { key: 'acceptedBy.name', label: 'Accepted By' },
-    { key: 'estimatedResolutionAt', label: 'Est. Resolution' },
+    ...(activeTab === 'accepted' || activeTab === 'resolved' ? [
+        { key: 'acceptedAt', label: 'Accepted Date' },
+        { key: 'estimatedResolutionAt', label: 'Est. Resolution' },
+        { key : 'est_time', label: 'Est Time', computed: true },
+        { key: 'act_time', label: 'Act. Time', computed: true },
+    ] : []),
+
+    ...(activeTab === 'resolved' ? [{ key: 'resolvedAt', label: 'Resolved Date' }] : []),
+
     ];
+
+// Transform data for export with calculated fields
+const getExportData = (tickets: Ticket[]) => {
+  return tickets.map(ticket => {
+    const data: any = {
+      code: ticket.code,
+      client: {
+        name: ticket.client?.name || 'Unknown',
+      },
+      acceptedBy: {
+        name:
+          typeof ticket.acceptedBy === 'string'
+            ? ticket.acceptedBy
+            : ticket.acceptedBy?.name || 'Unassigned',
+      },
+      masterDomain: ticket.masterDomain,
+      subDomain: ticket.subDomain || '',
+      subject: ticket.subject,
+      priority: ticket.priority || 'low',
+      status: ticket.status,
+    };
+
+    //Compact date formatter: 06DEC25 17:00
+    const formatCompactDateTime = (dateStr?: string | Date) => {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      const day = String(d.getDate()).padStart(2, '0');
+      const monthShort = d.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+      const yearShort = String(d.getFullYear()).slice(-2);
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${day}${monthShort}${yearShort} ${hours}:${minutes}`;
+    };
+
+    data.createdAt = formatCompactDateTime(ticket.createdAt);
+    data.acceptedAt = formatCompactDateTime(ticket.acceptedAt);
+    data.resolvedAt = formatCompactDateTime(ticket.resolvedAt);
+    data.estimatedResolutionAt = formatCompactDateTime(ticket.estimatedResolutionAt);
+
+    // Human-readable duration: "1 day 23 hours 4 minutes"
+    const formatDuration = (milliseconds: number) => {
+      const totalSeconds = Math.floor(milliseconds / 1000);
+      const days = Math.floor(totalSeconds / (24 * 60 * 60));
+      const hours = Math.floor((totalSeconds % (24 * 60 * 60)) / (60 * 60));
+      const minutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+
+      const parts: string[] = [];
+      if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+      if (hours > 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+      if (minutes > 0 || parts.length === 0) parts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
+      
+      return parts.join(' ') || '0 minutes';
+    };
+
+    // CALCULATIONS
+    if (ticket.acceptedAt && ticket.estimatedResolutionAt) {
+      const estStart = new Date(ticket.acceptedAt).getTime();
+      const estEnd = new Date(ticket.estimatedResolutionAt).getTime();
+      data.est_time = formatDuration(estEnd - estStart);
+    } else {
+      data.est_time = '';
+    }
+
+    if (ticket.acceptedAt && ticket.resolvedAt) {
+      const actStart = new Date(ticket.acceptedAt).getTime();
+      const actEnd = new Date(ticket.resolvedAt).getTime();
+      data.act_time = formatDuration(actEnd - actStart);
+    } else {
+      data.act_time = '';
+    }
+
+    if (ticket.acceptedAt && ticket.resolvedAt && ticket.estimatedResolutionAt) {
+      const estMs = new Date(ticket.estimatedResolutionAt).getTime() - new Date(ticket.acceptedAt).getTime();
+      const actMs = new Date(ticket.resolvedAt).getTime() - new Date(ticket.acceptedAt).getTime();
+      const diffMs = actMs - estMs;
+      const diffDuration = formatDuration(Math.abs(diffMs));
+      
+      data.performance = diffMs <= 0 
+        ? `${diffDuration} under` 
+        : `${diffDuration} over`;
+    } else {
+      data.performance = '';
+    }
+
+    if (ticket.acceptedAt) {
+      const now = Date.now();
+      const acceptTime = new Date(ticket.acceptedAt).getTime();
+      data.elapsed_since_accept = formatDuration(now - acceptTime);
+    } else {
+      data.elapsed_since_accept = '';
+    }
+
+    return data;
+  });
+};
 
 
     const initialFilters: TicketFilterState = {
@@ -544,7 +649,7 @@ export default function AdminDashboard() {
 
     {/* Export button - positioned on the right */}
     <ExportToExcel
-        data={currentData}
+        data={getExportData(currentData)}
         fileName={fileName}
         sheetName={activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
         columns={columnsToExport}
