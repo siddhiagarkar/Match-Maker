@@ -421,6 +421,29 @@ const getExportData = (tickets: Ticket[]) => {
   const currentData = getDataByTab();
   const fileName = getFileNameByTab();
 
+  const [suggestions, setSuggestions] = useState<Record<string, { _id: string; name: string }[]>>({});
+
+    useEffect(() => {
+  async function loadSuggestions() {
+    try {
+      const suggRes = await API.get('/tickets/suggestions');
+      
+      console.log('Status:', suggRes.status);
+      console.log('Raw data:', suggRes.data);
+      
+      // Axios already parsed JSON - no need for JSON.parse()
+      setSuggestions(suggRes.data);
+      console.log('Suggestions loaded:', suggRes.data);
+    } catch (err) {
+      console.error('Suggestions load failed:', err);
+      if (err.response) {
+        console.error('Response error:', err.response.status, err.response.data);
+      }
+    }
+  }
+  loadSuggestions();
+}, []);
+
 
 
 
@@ -691,7 +714,16 @@ const getExportData = (tickets: Ticket[]) => {
                                             </>
                                         )
                                         }
-                                        <th style={thStyle}>Handler</th>
+                                        {activeTab=='open' && (
+                                            <>
+                                            <th style={thStyle}>Suggested</th>
+                                            </>
+                                        )}
+                                        {(activeTab=='accepted' || activeTab=='resolved') && (
+                                            <>
+                                            <th style={thStyle}>Handler</th>
+                                            </>
+                                        )}
                                         {/* <th style={thStyle}>Actions</th> */}
                                     </tr>
                                 </thead>
@@ -851,10 +883,12 @@ const getExportData = (tickets: Ticket[]) => {
                                             <td style={tdStyle}>
                                             <span style={{ color: "#a1a1aa" }}>
                                                 {typeof ticket.acceptedBy === 'string'
-                                                ? ticket.acceptedBy
-                                                : ticket.acceptedBy?.name
-                                                    || ("Not-suggested")}
-                                            </span>
+                                                    ? ticket.acceptedBy
+                                                    : ticket.acceptedBy?.name
+                                                    || (suggestions?.[ticket._id]?.[0]?.name || "Suggested handler")
+                                                }
+                                                </span>
+
                                             </td>
 
 

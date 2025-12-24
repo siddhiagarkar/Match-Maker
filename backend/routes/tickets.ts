@@ -266,8 +266,8 @@ router.get('/my', auth, async (req: any, res: any) => {
 });
 
 router.get('/suggestions', auth, async (req: any, res: any) => {
-  if (req.user.role !== 'agent') {
-    return res.status(403).json({ error: "Only agents have access to this" });
+  if (req.user.role !== 'agent' && req.user.role !== 'admin') {
+    return res.status(403).json({ error: "Only agents & admins have access to this" });
   }
 
   try {
